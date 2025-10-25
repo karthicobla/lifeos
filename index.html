@@ -2415,7 +2415,47 @@
 
       // MODIFIED: updateCountdowns to update the new combined widget
       function updateCountdowns() {
-        now = new Date();
+        now = new Date(); // Set initial time
+
+        // --- NEW: Update Milestone Countdowns ---
+        $$('#pending-milestones-grid [data-countdown-to]').forEach(countdownContainer => {
+            const targetDateStr = countdownContainer.dataset.countdownTo;
+            if (!targetDateStr) return;
+
+            const targetDate = new Date(targetDateStr);
+            const diff = dateDiff(now, targetDate);
+
+            // Find the spans for numbers
+            // These selectors target the first <span> (the number) inside each of the 4 timer blocks
+            const daysEl = countdownContainer.querySelector('div > div:nth-child(1) > span:nth-child(1)');
+            const hoursEl = countdownContainer.querySelector('div > div:nth-child(2) > span:nth-child(1)');
+            const minsEl = countdownContainer.querySelector('div > div:nth-child(3) > span:nth-child(1)');
+            const secsEl = countdownContainer.querySelector('div > div:nth-child(4) > span:nth-child(1)');
+
+            if (diff.isPast || diff.ms <= 0) {
+                // Time is up. Replace with "Past Due" message.
+                // This matches the "else" block in renderMilestoneWidget's countdown logic.
+                countdownContainer.innerHTML = `
+                    <div class="flex items-center justify-center min-h-[40px]">
+                        <span class="text-xs font-medium text-red-400">Past Due</span>
+                    </div>`;
+                // Remove the data attribute to stop trying to update it
+                countdownContainer.removeAttribute('data-countdown-to');
+            } else if (daysEl && hoursEl && minsEl && secsEl) {
+                // Update the numbers
+                const newDays = String(Math.floor(diff.days)).padStart(2, '0');
+                const newHours = String(Math.floor(diff.hours % 24)).padStart(2, '0');
+                const newMins = String(Math.floor(diff.mins % 60)).padStart(2, '0');
+                const newSecs = String(Math.floor(diff.secs % 60)).padStart(2, '0');
+
+                // Only update textContent if it has changed to avoid unnecessary repaints
+                if (daysEl.textContent !== newDays) daysEl.textContent = newDays;
+                if (hoursEl.textContent !== newHours) hoursEl.textContent = newHours;
+                if (minsEl.textContent !== newMins) minsEl.textContent = newMins;
+                if (secsEl.textContent !== newSecs) secsEl.textContent = newSecs;
+            }
+        });
+        // --- END: Update Milestone Countdowns ---
 
         // Update Combined Time/Week Widget
         const timeDisplay = $('#time-display');
@@ -2592,3 +2632,4 @@
   </script>
 </body>
 </html>
+
