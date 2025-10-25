@@ -1,0 +1,2594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LifeOS Dashboard</title>
+
+  <!-- 1. Include Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- 2. Include Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- 2.1 Include SortableJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+
+  <!-- 3. Configure Tailwind & Fonts -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            inter: ['Inter', 'sans-serif'],
+          },
+          backdropBlur: {
+            xl: '20px',
+          },
+          // Add custom animation for subtle glow
+          keyframes: {
+            subtleGlow: {
+              '0%, 100%': { boxShadow: '0 0 3px 0px rgba(var(--glow-color, 96, 165, 250), 0.3)' }, // blue-400 default
+              '50%': { boxShadow: '0 0 8px 1px rgba(var(--glow-color, 96, 165, 250), 0.5)' },
+            }
+          },
+          animation: {
+            subtleGlow: 'subtleGlow 2.5s ease-in-out infinite',
+          }
+        },
+      },
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Custom Styles for the App -->
+  <style>
+    :root {
+      --bg-gradient-from: #1a1c2c;
+      --bg-gradient-to: #0a0a14;
+      --widget-bg: rgba(255, 255, 255, 0.05);
+      --widget-border: rgba(255, 255, 255, 0.1);
+      --widget-shadow-inset-color: rgba(255, 255, 255, 0.08);
+      --widget-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), inset 0 1px 2px 0 var(--widget-shadow-inset-color);
+      --header-bg: rgba(255, 255, 255, 0.05);
+      --header-border: rgba(255, 255, 255, 0.1);
+      --text-primary: #ffffff;
+      --text-secondary: #d1d5db; /* gray-300 */
+      --text-tertiary: #9ca3af; /* gray-400 */
+      --text-accent: #60a5fa; /* blue-400 */
+      --text-accent-cyan: #67e8f9; /* cyan-300 */
+      --slot-future-inactive-bg: rgba(255, 255, 255, 0.05);
+      --slot-past-inactive-bg: rgba(255, 255, 255, 0.2);
+      --heatmap-future-bg: rgba(255, 255, 255, 0.05); /* Default future heatmap block color */
+      --glow-color-rgb: 96, 165, 250; /* blue-400 */
+      --progress-bar-bg: linear-gradient(to right, var(--text-accent), #a7f3d0); /* Example gradient */
+      --milestone-dot-inactive: rgba(255, 255, 255, 0.2); /* Inactive milestone subtask dot */
+    }
+
+    body {
+      font-family: 'Inter', 'sans-serif';
+      background-color: var(--bg-gradient-to);
+      background-image: linear-gradient(to bottom right, var(--bg-gradient-from), var(--bg-gradient-to));
+      color: var(--text-primary);
+    }
+    /* Pulse for the 'present' block */
+    @keyframes pulse {
+      50% { opacity: 0.6; }
+    }
+    .animate-pulse-block {
+      animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    /* Pulse for hourglass icon */
+    @keyframes icon-pulse {
+      50% { transform: scale(1.1); opacity: 0.8; }
+    }
+    .animate-icon-pulse {
+      animation: icon-pulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    /* Scrollbar styling */
+    main::-webkit-scrollbar,
+    .column-scrollbar::-webkit-scrollbar,
+    textarea::-webkit-scrollbar,
+    #todo-list-container::-webkit-scrollbar {
+      width: 8px;
+    }
+    .column-scrollbar::-webkit-scrollbar,
+    textarea::-webkit-scrollbar,
+    #todo-list-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    main::-webkit-scrollbar-track,
+    .column-scrollbar::-webkit-scrollbar-track,
+    textarea::-webkit-scrollbar-track,
+    #todo-list-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    main::-webkit-scrollbar-thumb,
+    .column-scrollbar::-webkit-scrollbar-thumb,
+    textarea::-webkit-scrollbar-thumb,
+    #todo-list-container::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 10px;
+    }
+    main:hover::-webkit-scrollbar-thumb,
+    .column-scrollbar:hover::-webkit-scrollbar-thumb,
+    textarea:hover::-webkit-scrollbar-thumb,
+    #todo-list-container:hover::-webkit-scrollbar-thumb {
+      background: var(--widget-border);
+    }
+    main::-webkit-scrollbar-thumb:hover,
+    .column-scrollbar:hover::-webkit-scrollbar-thumb,
+    textarea:hover::-webkit-scrollbar-thumb,
+    #todo-list-container:hover::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    #theme-switcher button.active {
+      background-color: #2563eb; /* blue-600 */
+      color: #ffffff;
+    }
+
+    /* Category pill colors */
+    /* REMOVED: .pill-default, .pill-work, etc. These are now generated dynamically. */
+
+    /* Key Result Input Focus */
+    #subtask-input-container:focus-within {
+      border-color: var(--text-accent);
+    }
+
+    /* SortableJS drag styles */
+    .sortable-ghost {
+      opacity: 0.4;
+      background-color: rgba(96, 165, 250, 0.3);
+    }
+    .draggable-widget {
+      cursor: grab;
+    }
+    .draggable-widget:active {
+      cursor: grabbing;
+    }
+
+    /* Style for crossed-out time slots */
+    .slot-past::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 10%;
+      right: 10%;
+      height: 1px;
+      background-color: rgba(0, 0, 0, 0.3); /* Darker line for contrast */
+      transform: translateY(-50%);
+      opacity: 0.7;
+    }
+    /* Lighter line for dark themes */
+    html[style*="--text-primary: #ffffff"] .slot-past::after,
+    html[style*="--text-primary: #f0f0ff"] .slot-past::after, /* Cyberpunk */
+    html[style*="--text-primary: #e0f7ff"] .slot-past::after, /* Ocean */
+    html[style*="--text-primary: #ffedd5"] .slot-past::after, /* Sunset */
+    html[style*="--text-primary: #e5e5e5"] .slot-past::after, /* Charcoal */
+    html[style*="--text-primary: #00ff00"] .slot-past::after,  /* Matrix */
+    html[style*="--text-primary: #f3e8ff"] .slot-past::after  /* Twilight */
+      {
+        background-color: rgba(255, 255, 255, 0.3); /* Lighter line for dark themes */
+    }
+
+    /* Improved Progress Bar Style */
+    .progress-bar-fill {
+      background: var(--progress-bar-bg, var(--text-accent)); /* Use gradient or fallback */
+      transition: width 0.3s ease-out; /* Smooth transition */
+      
+      /* Add relative positioning for the shine effect */
+      position: relative;
+      overflow: hidden; /* Hide the shine element outside the bar */
+      /* z-index: 1; */ /* REMOVED: This was placing it above the text. */
+      /* By default, with position: relative, it has z-index: auto, */
+      /* and the text span coming after it in the DOM will stack on top. */
+    }
+
+    /* NEW: Add a "shine" pseudo-element for a moving line effect */
+    .progress-bar-fill::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -150%; /* Start off-screen */
+      bottom: 0;
+      width: 80%; /* Width of the shine effect */
+      
+      /* A white, angled line */
+      background: linear-gradient(
+        to right, 
+        rgba(255, 255, 255, 0) 0%, 
+        rgba(255, 255, 255, 0.4) 50%, /* The "line" */
+        rgba(255, 255, 255, 0) 100%
+      );
+      
+      /* Make it angled */
+      transform: skewX(-25deg); 
+      
+      /* Apply the animation */
+      animation: progress-shine 2s linear infinite;
+    }
+
+
+    /* NEW: Animation keyframes for the shine */
+    @keyframes progress-shine {
+      from {
+        left: -100%;
+      }
+      to {
+        left: 120%; /* Move it across the entire bar + its own width */
+      }
+    }
+
+    /* NEW: Faster animation for the current slot progress bar */
+    #slot-progress-bar-new::after {
+      animation-duration: 0.8s; /* Make it faster than the default 2s */
+    }
+
+    /* Todo List Styles */
+    #todo-list li {
+      display: flex;
+      align-items: center;
+      padding: 8px 4px;
+      border-bottom: 1px solid var(--widget-border);
+      transition: background-color 0.2s;
+    }
+    #todo-list li:last-child {
+      border-bottom: none;
+    }
+      #todo-list li:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+      }
+    #todo-list input[type="checkbox"] {
+      margin-right: 12px;
+      flex-shrink: 0;
+      appearance: none; /* Remove default */
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--text-tertiary);
+      border-radius: 4px;
+      cursor: pointer;
+      position: relative;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+      #todo-list input[type="checkbox"]:checked {
+        background-color: var(--text-accent);
+        border-color: var(--text-accent);
+      }
+      #todo-list input[type="checkbox"]:checked::after { /* Checkmark */
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 5px;
+        width: 5px;
+        height: 10px;
+        border: solid white;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+      }
+    #todo-list span {
+      flex-grow: 1;
+      transition: color 0.2s, text-decoration 0.2s;
+    }
+    #todo-list input[type="checkbox"]:checked + span {
+      color: var(--text-tertiary);
+      text-decoration: line-through;
+      opacity: 0.7;
+    }
+    .todo-delete-btn {
+        margin-left: 8px;
+        color: var(--text-tertiary);
+        opacity: 0.5;
+        transition: opacity 0.2s, color 0.2s;
+        flex-shrink: 0;
+      }
+      #todo-list li:hover .todo-delete-btn {
+        opacity: 1;
+      }
+      .todo-delete-btn:hover {
+        color: #f87171; /* red-400 */
+      }
+
+    /* Onboarding Styles */
+    #onboarding-highlight-frame {
+      box-sizing: border-box; /* Include border in size */
+      transition: top 0.3s ease-in-out, left 0.3s ease-in-out, width 0.3s ease-in-out, height 0.3s ease-in-out, border-radius 0.3s ease-in-out, opacity 0.3s ease-in-out;
+      opacity: 0; /* Start hidden */
+      pointer-events: none; /* Make sure it doesn't block interactions */
+    }
+    #onboarding-highlight-frame.visible {
+       opacity: 1;
+    }
+
+    /* Style for the currently highlighted onboarding element */
+    .onboarding-target-active {
+      position: relative; /* Needed for z-index */
+      z-index: 102; /* Above overlay, below popover/frame */
+      transition: transform 0.3s ease-in-out; /* Optional: smooth scale effect */
+    }
+
+     /* Onboarding Step Indicators */
+     #onboarding-steps {
+        display: flex;
+        gap: 6px; /* Space between dots */
+        align-items: center;
+        /* REMOVED: position: absolute, left: 50%, transform: translateX(-50%) */
+        /* It is now centered using a flexbox parent */
+     }
+     .onboarding-step-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.3); /* Inactive dot color */
+        transition: background-color 0.3s ease;
+     }
+     .onboarding-step-dot.active {
+        background-color: var(--text-accent); /* Active dot color */
+     }
+
+     /* NEW: Tab Button Styles */
+    .settings-tab-btn {
+      flex: 1;
+      padding: 10px 16px; /* A bit smaller padding for tabs */
+      font-size: 14px;
+      font-weight: 500;
+      text-align: center;
+      color: var(--text-tertiary);
+      border-bottom: 2px solid transparent;
+      transition: color 0.2s, border-color 0.2s;
+      white-space: nowrap;
+    }
+    .settings-tab-btn:hover {
+      color: var(--text-primary);
+    }
+    .settings-tab-btn.active {
+      color: var(--text-accent);
+      border-bottom-color: var(--text-accent);
+    }
+
+
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col overflow-hidden">
+
+  <!-- App Root -->
+  <div id="app-root" class="h-screen w-screen flex flex-col">
+    <!-- Loading State -->
+    <div id="loading-screen" class="flex flex-col items-center justify-center h-screen p-6">
+      <i data-lucide="target" class="text-blue-400 mb-4 animate-pulse-block" style="width: 48px; height: 48px;"></i>
+      <div class="text-2xl font-semibold mb-6">Connecting to LifeOS...</div>
+      <p class="text-[var(--text-tertiary)]">Loading LifeOS...</p>
+    </div>
+
+    <!-- Main Dashboard Structure -->
+    <div id="dashboard-ui" class="h-full w-full flex flex-col hidden">
+
+      <!-- Header -->
+      <header class="w-full px-4 py-2 flex justify-between items-center flex-shrink-0 bg-[var(--header-bg)] backdrop-blur-xl border-b border-[var(--header-border)] z-10">
+        <div class="flex items-center gap-3">
+          <i data-lucide="target" class="text-blue-400" style="width: 28px; height: 28px;"></i>
+          <h1 class="text-xl font-bold text-[var(--text-primary)]">LifeOS</h1>
+        </div>
+
+        <div id="theme-switcher" class="hidden lg:flex items-center gap-1 bg-[var(--widget-bg)] border border-[var(--widget-border)] rounded-lg p-1">
+          <!-- Theme icons rendered here -->
+        </div>
+
+        <div class="flex gap-2">
+          <button id="btn-add-milestone" title="Add Goal" class="flex items-center justify-center px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg shadow-md transition-colors">
+            <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
+          </button>
+          <!-- Settings button is now second and icon-only -->
+          <button id="btn-open-settings" title="Settings" class="flex items-center gap-2 px-3 py-1.5 bg-[var(--widget-bg)] hover:bg-white/20 text-[var(--text-primary)] font-medium rounded-lg transition-colors border border-[var(--widget-border)]">
+            <i data-lucide="settings" style="width: 18px; height: 18px;"></i>
+          </button>
+          <!-- Help (Tour) button is now last and icon-only -->
+           <button id="btn-start-onboarding" title="Start Tour" class="flex items-center gap-2 px-3 py-1.5 bg-[var(--widget-bg)] hover:bg-white/20 text-[var(--text-primary)] font-medium rounded-lg transition-colors border border-[var(--widget-border)]">
+             <i data-lucide="help-circle" style="width: 18px; height: 18px;"></i>
+           </button>
+        </div>
+      </header>
+
+      <!-- Main Scrollable Content -->
+      <!-- Adjusted height calculation based on new header height (approx 50px + padding) -->
+      <main id="main-content" class="flex-1 overflow-y-auto p-4 lg:p-6 lg:grid lg:grid-cols-12 lg:gap-6 space-y-4 lg:space-y-0 lg:overflow-hidden">
+
+        <!-- === Left Column === -->
+        <div class="lg:col-span-3 lg:overflow-y-auto lg:h-[calc(100vh-65px)] column-scrollbar lg:pr-2">
+
+          <div id="left-widget-grid" class="grid grid-cols-2 gap-4">
+            <div id="stat-time-week" class="col-span-2 draggable-widget"></div>
+            <div id="stat-slots" class="col-span-2 draggable-widget"></div>
+            <div id="stat-age" class="col-span-1 draggable-widget"></div>
+            <div id="stat-remaining" class="col-span-1 draggable-widget"></div>
+          </div>
+        </div>
+
+        <!-- === Middle Column === -->
+        <div class="lg:col-span-6 space-y-4 lg:space-y-6 lg:overflow-y-auto lg:h-[calc(100vh-65px)] column-scrollbar lg:px-2">
+
+          <!-- Next Objectives -->
+          <div>
+            <div id="pending-milestones-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 pt-4">
+              <!-- Milestones rendered here -->
+            </div>
+          </div>
+
+          <!-- Life Grid Container -->
+          <div id="life-grid-container">
+            <!-- Life Grid rendered here -->
+          </div>
+
+          <!-- Completed Milestones -->
+          <div>
+            <h2 class="text-xl lg:text-2xl font-semibold text-green-400 mb-4 flex items-center sticky top-0 bg-[var(--bg-gradient-from)]/80 backdrop-blur-sm py-2 z-10">
+              <i data-lucide="check-circle" class="mr-3" style="width: 20px; height: 20px; lg:width: 24px; lg:height: 24px;"></i>
+              Completed
+            </h2>
+            <div id="completed-milestones-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+              <!-- Milestones rendered here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- === Right Column === -->
+        <div class="lg:col-span-3 lg:overflow-y-auto lg:h-[calc(100vh-65px)] column-scrollbar lg:pr-2">
+
+          <div id="right-widget-grid" class="grid grid-cols-2 gap-4">
+            <div id="stat-motivation" class="col-span-2 draggable-widget"></div>
+            <div id="stat-week-left" class="col-span-1 draggable-widget"></div>
+            <div id="stat-year" class="col-span-1 draggable-widget"></div>
+
+            <div id="stat-progress-year" class="col-span-2 draggable-widget"></div>
+            <div id="stat-todolist" class="col-span-2 draggable-widget"></div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Modals -->
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity hidden">
+    <div class="bg-[var(--widget-bg)] backdrop-blur-xl border border-[var(--widget-border)] rounded-2xl w-full max-w-3xl m-4 transform transition-all flex flex-col max-h-[90vh]" style="box-shadow: var(--widget-shadow);">
+      <!-- Modal Header -->
+      <div class="flex justify-between items-center p-5 border-b border-[var(--widget-border)] flex-shrink-0">
+        <h3 class="text-xl font-semibold text-[var(--text-primary)]">Settings</h3>
+        <button id="btn-close-settings" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+          <i data-lucide="x" style="width: 24px; height: 24px;"></i>
+        </button>
+      </div>
+
+      <!-- NEW: Tab Navigation -->
+      <nav id="settings-tab-nav" class="flex items-center border-b border-[var(--widget-border)] px-3 flex-shrink-0 overflow-x-auto">
+        <button data-tab="general" class="settings-tab-btn active flex items-center justify-center"><i data-lucide="sliders-horizontal" class="w-4 h-4 mr-2 flex-shrink-0"></i>General</button>
+        <button data-tab="goals" class="settings-tab-btn flex items-center justify-center"><i data-lucide="target" class="w-4 h-4 mr-2 flex-shrink-0"></i>Goals</button>
+        <button data-tab="tasks" class="settings-tab-btn flex items-center justify-center"><i data-lucide="check-square" class="w-4 h-4 mr-2 flex-shrink-0"></i>Tasks</button>
+        <button data-tab="quotes" class="settings-tab-btn flex items-center justify-center"><i data-lucide="quote" class="w-4 h-4 mr-2 flex-shrink-0"></i>Quotes</button>
+        <button data-tab="data" class="settings-tab-btn flex items-center justify-center"><i data-lucide="database" class="w-4 h-4 mr-2 flex-shrink-0"></i>Data</button>
+      </nav>
+
+      <!-- Tab Panels -->
+      <div class="overflow-y-auto column-scrollbar">
+        <form id="settings-form" class="space-y-6">
+          
+          <!-- General Tab -->
+          <div id="tab-panel-general" class="settings-tab-panel p-6 space-y-4">
+            <!-- (Content for General Settings) -->
+            <div>
+              <label for="birthDate" class="block text-sm font-medium text-[var(--text-secondary)] mb-1">Birth Date</label>
+              <input type="date" id="birthDate" name="birthDate" required class="w-full px-4 py-2 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label for="maxLifespan" class="block text-sm font-medium text-[var(--text-secondary)] mb-1">Lifespan (Years)</label>
+                <input type="number" id="maxLifespan" name="maxLifespan" min="1" value="80" required class="w-full px-4 py-2 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+              </div>
+              <div>
+                <label for="primeStart" class="block text-sm font-medium text-[var(--text-secondary)] mb-1">Prime Start (Age)</label>
+                <input type="number" id="primeStart" name="primeStart" min="1" value="18" required class="w-full px-4 py-2 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+              </div>
+              <div>
+                <label for="primeEnd" class="block text-sm font-medium text-[var(--text-secondary)] mb-1">Prime End (Age)</label>
+                <input type="number" id="primeEnd" name="primeEnd" min="1" value="50" required class="w-full px-4 py-2 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+              </div>
+              <div>
+                <label for="activeStart" class="block text-sm font-medium text-[var(--text-secondary)] mb-1">Active Start (Hour)</label>
+                <input type="number" id="activeStart" name="activeStart" min="0" max="23" value="6" required class="w-full px-4 py-2 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+              </div>
+              <div>
+                <label for="activeEnd" class="block text-sm font-medium text-[var(--text-secondary)] mb-1">Active End (Hour)</label>
+                <input type="number" id="activeEnd" name="activeEnd" min="1" max="24" value="22" required class="w-full px-4 py-2 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+              </div>
+            </div>
+          </div>
+          
+          <!-- Goals Tab -->
+          <div id="tab-panel-goals" class="settings-tab-panel p-6 space-y-4 hidden">
+            <!-- (Content for Goal Category Settings) -->
+            <div id="goal-settings-message" class="hidden"></div>
+            <div id="goal-category-list" class="space-y-4">
+              <!-- Categories rendered here by JS -->
+            </div>
+            <div class="p-4 bg-black/10 rounded-xl space-y-3">
+              <h4 class="text-base font-semibold text-[var(--text-primary)]">Add New Category</h4>
+              <div class="grid grid-cols-1 sm:grid-cols-6 gap-3">
+                <input type="text" id="new-category-name" placeholder="Category Name" class="sm:col-span-3 px-3 py-2 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400 text-sm">
+                <input type="text" id="new-category-icon" placeholder="Icon (e.g. 'briefcase')" list="lucide-icon-list" class="sm:col-span-2 px-3 py-2 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400 text-sm">
+                <input type="color" id="new-category-color" value="#ffffff" title="Category Color" class="sm:col-span-1 w-full h-10 px-2 py-1 bg-[var(--widget-bg)] border border-[var(--widget-border)] rounded-lg cursor-pointer">
+              </div>
+              <button type="button" id="btn-add-category" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg shadow-md transition-colors">Add Category</button>
+            </div>
+          </div>
+          
+          <!-- Tasks Tab -->
+          <div id="tab-panel-tasks" class="settings-tab-panel p-6 space-y-4 hidden">
+            <div>
+              <label for="defaultTodos" class="block text-sm font-medium text-[var(--text-secondary)] mb-1">Default Daily Tasks</label>
+              <p class="text-xs text-[var(--text-tertiary)] mb-2">One task per line. These will load every new day.</p>
+              <textarea id="defaultTodos" name="defaultTodos" rows="8" class="w-full px-4 py-2 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 column-scrollbar"></textarea>
+            </div>
+          </div>
+
+          <!-- Quotes Tab -->
+          <div id="tab-panel-quotes" class="settings-tab-panel p-6 space-y-4 hidden">
+            <div>
+              <label for="customQuotes" class="block text-sm font-medium text-[var(--text-secondary)] mb-1">Custom Motivational Quotes</label>
+              <p class="text-xs text-[var(--text-tertiary)] mb-2">One quote per line. If empty, default quotes will be used.</p>
+              <textarea id="customQuotes" name="customQuotes" rows="8" class="w-full px-4 py-2 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 column-scrollbar"></textarea>
+            </div>
+          </div>
+
+          <!-- Data Tab -->
+          <div id="tab-panel-data" class="settings-tab-panel p-6 space-y-4 hidden">
+            <!-- (Content for Import/Export) -->
+            <div class="p-4 bg-black/10 rounded-xl space-y-3">
+              <h4 class="text-base font-semibold text-[var(--text-primary)]">Export Data</h4>
+              <p class="text-sm text-[var(--text-tertiary)]">Save all your settings, goals, and tasks to a JSON file.</p>
+              <button type="button" id="btn-export-data" class="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg shadow-md transition-colors">Export .json</button>
+            </div>
+            <div class="p-4 bg-black/10 rounded-xl space-y-3">
+              <h4 class="text-base font-semibold text-[var(--text-primary)]">Import Data</h4>
+              <p class="text-sm text-[var(--text-tertiary)]">Load from a backup file. This will overwrite current data.</p>
+              <input type="file" id="import-file-input" accept=".json" class="hidden">
+              <button type="button" id="btn-import-data" class="w-full px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white font-medium rounded-lg shadow-md transition-colors">Import .json</button>
+            </div>
+          </div>
+          
+        </form>
+      </div> <!-- End Tab Panels -->
+
+      <!-- Modal Footer (always visible) -->
+      <div class="flex justify-between items-center p-6 border-t border-[var(--widget-border)] flex-shrink-0">
+        <div id="settings-message" class="hidden"></div>
+        <div class="flex ml-auto">
+          <button type="button" id="btn-cancel-settings" class="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-[var(--text-primary)] font-medium rounded-lg transition-colors mr-3">
+            Cancel
+          </button>
+          <button type="submit" id="btn-submit-settings" form="settings-form" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg shadow-md transition-colors">
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Milestone Modal -->
+  <div id="milestone-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity hidden">
+    <div class="bg-[var(--widget-bg)] backdrop-blur-xl border border-[var(--widget-border)] rounded-2xl w-full max-w-2xl m-4 transform transition-all flex flex-col max-h-[90vh]" style="box-shadow: var(--widget-shadow);"> <!-- MODIFIED: Increased max-w-lg to max-w-2xl -->
+      <!-- Modal Header -->
+      <div class="flex justify-between items-center p-5 border-b border-[var(--widget-border)] flex-shrink-0">
+        <h3 id="milestone-modal-title" class="text-xl font-semibold text-[var(--text-primary)]">Add Goal</h3>
+        <button id="btn-close-milestone" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+          <i data-lucide="x" style="width: 24px; height: 24px;"></i>
+        </button>
+      </div>
+
+      <form id="milestone-form" class="flex-1 overflow-y-auto p-6 space-y-5"> <!-- MODIFIED: Increased padding and spacing -->
+        <input type="hidden" id="milestone-id" name="id">
+        
+        <!-- Section 1 - Core Details Card -->
+        <div class="space-y-4 bg-black/10 rounded-xl p-5"> <!-- MODIFIED: Increased padding -->
+          
+          <!-- Title -->
+          <div>
+            <label for="milestone-title" class="flex items-center text-sm font-medium text-[var(--text-secondary)] mb-1.5"> <!-- MODIFIED: Added icon and margin -->
+              <i data-lucide="text" class="w-4 h-4 mr-2 opacity-70"></i>
+              Goal Title
+            </label>
+            <input type="text" id="milestone-title" name="title" required class="w-full px-4 py-2.5 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+          </div>
+
+          <!-- NEW: Notes Section -->
+          <div>
+            <label for="milestone-notes" class="flex items-center text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+              <i data-lucide="file-text" class="w-4 h-4 mr-2 opacity-70"></i>
+              Notes / Description
+            </label>
+            <textarea id="milestone-notes" name="notes" rows="3" placeholder="Add more details about this goal..." class="w-full px-4 py-2.5 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 column-scrollbar"></textarea>
+          </div>
+          
+          <!-- Side-by-side group for Date/Priority (MODIFIED Grouping) -->
+          <div class="flex flex-col sm:flex-row sm:gap-4 space-y-4 sm:space-y-0">
+            <div class="flex-1">
+              <label for="milestone-targetDate" class="flex items-center text-sm font-medium text-[var(--text-secondary)] mb-1.5"> <!-- MODIFIED: Added icon and margin -->
+                <i data-lucide="calendar" class="w-4 h-4 mr-2 opacity-70"></i>
+                Target Date
+              </label>
+              <input type="date" id="milestone-targetDate" name="targetDate" required class="w-full px-4 py-2.5 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
+
+            <!-- NEW: Priority Field -->
+            <div class="flex-1">
+              <label for="milestone-priority" class="flex items-center text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                <i data-lucide="arrow-up-narrow-wide" class="w-4 h-4 mr-2 opacity-70"></i>
+                Priority
+              </label>
+              <select id="milestone-priority" name="priority" class="w-full px-4 py-2.5 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <option value="low" class="bg-gray-800">Low</option>
+                <option value="medium" selected class="bg-gray-800">Medium</option>
+                <option value="high" class="bg-gray-800">High</option>
+              </select>
+            </div>
+          </div>
+          
+          <!-- Side-by-side group for Category/Status -->
+          <div class="flex flex-col sm:flex-row sm:gap-4 space-y-4 sm:space-y-0">
+            <div class="flex-1">
+              <label for="milestone-category" class="flex items-center text-sm font-medium text-[var(--text-secondary)] mb-1.5"> <!-- MODIFIED: Added icon and margin -->
+                <i data-lucide="tag" class="w-4 h-4 mr-2 opacity-70"></i>
+                Category
+              </label>
+              <select id="milestone-category" name="category" class="w-full px-4 py-2.5 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <!-- Options will be populated by JS -->
+                <option value="default" class="bg-gray-800">Default</option>
+              </select>
+            </div>
+            <div class="flex-1">
+              <label for="milestone-status" class="flex items-center text-sm font-medium text-[var(--text-secondary)] mb-1.5"> <!-- MODIFIED: Added icon and margin -->
+                <i data-lucide="activity" class="w-4 h-4 mr-2 opacity-70"></i>
+                Status
+              </label>
+              <select id="milestone-status" name="status" class="w-full px-4 py-2.5 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <option value="pending" class="bg-gray-800">Pending</option>
+                <option value="completed" class="bg-gray-800">Completed</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2 - Subtasks Card -->
+        <div class="space-y-3 bg-black/10 rounded-xl p-5"> <!-- MODIFIED: Increased padding -->
+          <label class="block text-lg font-semibold text-[var(--text-primary)]">Key Results (Subtasks)</label> <!-- MODIFIED: Renamed label -->
+          
+          <!-- Milestone-specific Progress Bar -->
+          <div id="milestone-progress-container" class="pt-1 hidden"> <!-- Start hidden -->
+              <div class="flex justify-between text-xs font-medium text-[var(--text-secondary)] mb-1">
+                <span>Progress</span>
+                <span id="milestone-progress-text">0 / 0 Completed</span>
+              </div>
+              <div class="w-full bg-white/10 rounded-full h-2.5 relative overflow-hidden">
+                <div id="milestone-progress-bar" class="h-2.5 rounded-full progress-bar-fill" style="width: 0%;"></div>
+                <span id="milestone-progress-percent" class="absolute inset-0 flex items-center justify-center text-[10px] font-extrabold text-white mix-blend-difference" style="line-height: 1;">
+                    0%
+                </span>
+              </div>
+          </div>
+          <!-- END NEW: Milestone-specific Progress Bar -->
+          
+          <div id="subtask-input-container" class="flex gap-2 bg-[var(--widget-bg)] border border-[var(--widget-border)] rounded-lg focus-within:ring-2 focus-within:ring-blue-400 transition-all">
+            <input type="text" id="milestone-subtask-input" placeholder="Add a new milestone..." class="flex-grow bg-transparent text-[var(--text-primary)] outline-none px-4 py-2.5">
+            <button type="button" id="btn-add-subtask" class="p-3 text-blue-400 hover:text-blue-300 transition-colors">
+              <i data-lucide="plus-circle" style="width: 20px; height: 20px;"></i>
+            </button>
+          </div>
+          <div id="milestone-subtask-list" class="space-y-2 max-h-48 overflow-y-auto pr-2 column-scrollbar">
+            <!-- Key Results rendered here -->
+          </div>
+        </div>
+      </form>
+      <div class="flex justify-between items-center p-6 pt-4 border-t border-[var(--widget-border)] flex-shrink-0"> <!-- MODIFIED: justify-between -->
+        
+        <!-- NEW: Delete Button -->
+        <button type="button" id="btn-delete-milestone-modal" class="px-4 py-2 text-red-400 hover:bg-red-500/20 font-medium rounded-lg transition-colors text-sm hidden"> <!-- Start hidden -->
+          Delete Goal
+        </button>
+
+        <!-- MODIFIED: Wrapped save/cancel in a div -->
+        <div>
+          <button type="button" id="btn-cancel-milestone" class="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-[var(--text-primary)] font-medium rounded-lg transition-colors mr-3">
+            Cancel
+          </button>
+          <button type="submit" id="btn-submit-milestone" form="milestone-form" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg shadow-md transition-colors">
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onboarding Flow -->
+  <div id="onboarding-overlay" class="fixed inset-0 z-[100] bg-black bg-opacity-70 backdrop-blur-sm transition-opacity hidden"></div>
+  <!-- Highlight Frame - NEW -->
+  <div id="onboarding-highlight-frame" class="fixed z-[101] border-4 border-[var(--text-accent)] rounded-2xl pointer-events-none hidden" style="box-shadow: 0 0 15px 5px rgba(var(--glow-color-rgb), 0.7);"></div>
+  <div id="onboarding-popover" class="fixed z-[103] bg-[var(--widget-bg)] border border-[var(--widget-border)] rounded-2xl w-full max-w-sm shadow-xl transition-all transform hidden ease-in-out duration-300 opacity-0"> <!-- Increased z-index -->
+    <div class="p-5">
+      <h3 id="onboarding-title" class="text-xl font-semibold text-[var(--text-primary)] mb-3">Welcome to LifeOS!</h3>
+      <p id="onboarding-content" class="text-[var(--text-secondary)] text-sm leading-relaxed">Let's take a quick look at the key features.</p>
+    </div>
+    <!-- Footer with step indicators -->
+    <div class="flex justify-between items-center p-4 border-t border-[var(--widget-border)] bg-black/10">
+      <!-- Left Aligned Skip -->
+      <div class="flex-initial flex justify-start">
+        <button id="btn-onboarding-skip" class="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">Skip</button>
+      </div>
+      
+      <!-- Centered Dots -->
+      <div class="flex-1 flex justify-center min-w-0">
+        <div id="onboarding-steps" class="flex gap-1.5">
+          <!-- Dots will be rendered here by JS -->
+        </div>
+      </div>
+
+      <!-- Right Aligned Buttons -->
+      <div class="flex-initial flex justify-end">
+        <div class="flex gap-2">
+          <button id="btn-onboarding-back" class="px-4 py-1.5 bg-white/10 hover:bg-white/20 text-[var(--text-primary)] font-medium rounded-lg transition-colors hidden">Back</button>
+          <button id="btn-onboarding-next" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg shadow-md transition-colors">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- App Logic -->
+  <script type="module">
+    // --- Global State ---
+    let now = new Date();
+    let defaultSettings = {
+      birthDate: '2000-01-01',
+      maxLifespan: 80,
+      primeStart: 18,
+      primeEnd: 50,
+      activeStart: 6,
+      activeEnd: 22,
+    };
+    let settings = { ...defaultSettings };
+    let milestones = [];
+    let calculations = null;
+    let currentSubtasks = [];
+    let lastSlotsPassed = -1;
+    let dailyTodos = []; // NEW: Array for todo items [{ text: 'Task', completed: false, id: '...' }]
+    let defaultTodos = []; // NEW: Array of strings for default tasks
+    let lastTodoDate = ''; // NEW: To track the date for daily reset
+
+    // Default quotes list
+    const defaultMotivationalQuotes = [
+      "The best way to predict the future is to create it.",
+      "You are never too old to set another goal or to dream a new dream.",
+      "The secret of getting ahead is getting started.",
+      "Your limitation—it's only your imagination.",
+      "The future belongs to those who believe in the beauty of their dreams."
+    ];
+    let motivationalQuotes = [...defaultMotivationalQuotes];
+    let currentQuoteIndex = 0;
+
+    // REMOVED: Duplicate declaration of motivationalQuotes and currentQuoteIndex
+    let quoteTimer; // NEW: Timer for quote cycling
+
+    // NEW: Goal Categories
+    const defaultCategories = [
+      { id: 'default', name: 'Default', icon: 'target', color: '#9ca3af' },
+      { id: 'work', name: 'Work', icon: 'briefcase', color: '#60a5fa' },
+      { id: 'health', name: 'Health', icon: 'heart-pulse', color: '#4ade80' },
+      { id: 'finance', name: 'Finance', icon: 'piggy-bank', color: '#facc15' },
+      { id: 'personal', name: 'Personal', icon: 'user', color: '#c084fc' },
+      { id: 'learning', name: 'Learning', icon: 'brain', color: '#f97316' }
+    ];
+    let goalCategories = [...defaultCategories];
+
+    const themes = [
+      { name: 'Dark', icon: 'star',
+        vars: { /* ... Dark theme vars ... */ '--bg-gradient-from': '#1a1c2c', '--bg-gradient-to': '#0a0a14', '--widget-bg': 'rgba(255, 255, 255, 0.08)', '--widget-border': 'rgba(255, 255, 255, 0.1)', '--widget-shadow-inset-color': 'rgba(255, 255, 255, 0.08)', '--widget-shadow': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), inset 0 1px 2px 0 var(--widget-shadow-inset-color)', '--header-bg': 'rgba(255, 255, 255, 0.05)', '--header-border': 'rgba(255, 255, 255, 0.1)', '--text-primary': '#ffffff', '--text-secondary': '#d1d5db', '--text-tertiary': '#9ca3af', '--text-accent': '#60a5fa', '--text-accent-cyan': '#67e8f9', '--slot-future-inactive-bg': 'rgba(255, 255, 255, 0.1)', '--slot-past-inactive-bg': 'rgba(255, 255, 255, 0.2)', '--heatmap-future-bg': 'rgba(255, 255, 255, 0.05)', '--glow-color-rgb': '96, 165, 250', '--progress-bar-bg': 'linear-gradient(to right, #60a5fa, #67e8f9)', '--milestone-dot-inactive': 'rgba(255, 255, 255, 0.2)' },
+        gradients: { life: [[0, 100, 255], [64, 224, 208], [76, 175, 80], [255, 235, 59], [244, 67, 54]], prime: [[255, 255, 0], [255, 215, 0], [255, 140, 0], [255, 69, 0], [211, 47, 47]], year: [[64, 196, 99], [33, 110, 57]], day: [[56, 189, 248], [6, 95, 212]] }
+      },
+      { name: 'Light', icon: 'sun',
+        vars: { /* ... Light theme vars ... */ '--bg-gradient-from': '#f3f4f6', '--bg-gradient-to': '#e5e7eb', '--widget-bg': 'rgba(255, 255, 255, 0.8)', '--widget-border': 'rgba(0, 0, 0, 0.1)', '--widget-shadow-inset-color': 'rgba(0, 0, 0, 0.03)', '--widget-shadow': '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03), inset 0 1px 2px 0 var(--widget-shadow-inset-color)', '--header-bg': 'rgba(255, 255, 255, 0.7)', '--header-border': 'rgba(0, 0, 0, 0.1)', '--text-primary': '#1f2937', '--text-secondary': '#4b5563', '--text-tertiary': '#6b7280', '--text-accent': '#2563eb', '--text-accent-cyan': '#0891b2', '--slot-future-inactive-bg': 'rgba(0, 0, 0, 0.08)', '--slot-past-inactive-bg': 'rgba(0, 0, 0, 0.15)', '--heatmap-future-bg': 'rgba(0, 0, 0, 0.08)', '--glow-color-rgb': '37, 99, 235', '--progress-bar-bg': 'linear-gradient(to right, #2563eb, #0891b2)', '--milestone-dot-inactive': 'rgba(0, 0, 0, 0.2)' },
+        gradients: { life: [[110, 150, 255], [0, 150, 200], [0, 128, 0], [200, 160, 0], [220, 50, 30]], prime: [[220, 220, 0], [200, 165, 0], [200, 110, 0], [200, 50, 0], [180, 40, 40]], year: [[64, 196, 99], [33, 110, 57]], day: [[56, 189, 248], [6, 95, 212]] }
+      },
+        { name: 'Twilight', icon: 'moon',
+        vars: { /* ... Twilight theme vars ... */ '--bg-gradient-from': '#3b0764', '--bg-gradient-to': '#11022e', '--widget-bg': 'rgba(255, 255, 255, 0.08)', '--widget-border': 'rgba(255, 255, 255, 0.12)', '--widget-shadow-inset-color': 'rgba(255, 255, 255, 0.08)', '--widget-shadow': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), inset 0 1px 2px 0 var(--widget-shadow-inset-color)', '--header-bg': 'rgba(10, 2, 20, 0.5)', '--header-border': 'rgba(255, 255, 255, 0.12)', '--text-primary': '#f3e8ff', '--text-secondary': '#e9d5ff', '--text-tertiary': '#c084fc', '--text-accent': '#f9a8d4', '--text-accent-cyan': '#a5b4fc', '--slot-future-inactive-bg': 'rgba(255, 255, 255, 0.1)', '--slot-past-inactive-bg': 'rgba(255, 255, 255, 0.2)', '--heatmap-future-bg': 'rgba(255, 255, 255, 0.05)', '--glow-color-rgb': '249, 168, 212', '--progress-bar-bg': 'linear-gradient(to right, #f9a8d4, #a5b4fc)', '--milestone-dot-inactive': 'rgba(255, 255, 255, 0.3)' },
+        gradients: { life: [[165, 180, 252], [192, 132, 252], [244, 114, 182], [251, 146, 60], [253, 186, 116]], prime: [[253, 230, 138], [251, 191, 36], [249, 115, 22], [234, 88, 12], [217, 70, 239]], year: [[192, 132, 252], [165, 180, 252]], day: [[244, 114, 182], [192, 132, 252]] }
+      },
+      { name: 'Forest', icon: 'leaf',
+        vars: { /* ... Forest theme vars ... */ '--bg-gradient-from': '#143014', '--bg-gradient-to': '#051905', '--widget-bg': 'rgba(255, 255, 255, 0.08)', '--widget-border': 'rgba(255, 255, 255, 0.1)', '--widget-shadow-inset-color': 'rgba(255, 255, 255, 0.08)', '--widget-shadow': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), inset 0 1px 2px 0 var(--widget-shadow-inset-color)', '--header-bg': 'rgba(10, 30, 10, 0.5)', '--header-border': 'rgba(255, 255, 255, 0.1)', '--text-primary': '#f0f0e6', '--text-secondary': '#c2c2b8', '--text-tertiary': '#a1a19a', '--text-accent': '#a7f3d0', '--text-accent-cyan': '#86efac', '--slot-future-inactive-bg': 'rgba(255, 255, 255, 0.1)', '--slot-past-inactive-bg': 'rgba(255, 255, 255, 0.2)', '--heatmap-future-bg': 'rgba(255, 255, 255, 0.05)', '--glow-color-rgb': '167, 243, 208', '--progress-bar-bg': 'linear-gradient(to right, #a7f3d0, #86efac)', '--milestone-dot-inactive': 'rgba(255, 255, 255, 0.3)' },
+        gradients: { life: [[167, 243, 208], [107, 180, 133], [74, 120, 80], [150, 100, 50], [100, 60, 30]], prime: [[234, 179, 8], [202, 138, 4], [161, 98, 7], [120, 53, 15], [80, 40, 10]], year: [[110, 231, 183], [34, 197, 94]], day: [[134, 239, 172], [74, 222, 128]] }
+      },
+      { name: 'Cyberpunk', icon: 'zap',
+        vars: { /* ... Cyberpunk theme vars ... */ '--bg-gradient-from': '#2a002a', '--bg-gradient-to': '#000022', '--widget-bg': 'rgba(0, 255, 255, 0.08)', '--widget-border': 'rgba(255, 0, 255, 0.2)', '--widget-shadow-inset-color': 'rgba(0, 255, 255, 0.1)', '--widget-shadow': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), inset 0 1px 2px 0 var(--widget-shadow-inset-color)', '--header-bg': 'rgba(0, 0, 0, 0.5)', '--header-border': 'rgba(255, 0, 255, 0.2)', '--text-primary': '#f0f0ff', '--text-secondary': '#00ffff', '--text-tertiary': '#9ca3af', '--text-accent': '#f472b6', '--text-accent-cyan': '#00ffff', '--slot-future-inactive-bg': 'rgba(0, 255, 255, 0.1)', '--slot-past-inactive-bg': 'rgba(0, 255, 255, 0.15)', '--heatmap-future-bg': 'rgba(0, 255, 255, 0.05)', '--glow-color-rgb': '244, 114, 182', '--progress-bar-bg': 'linear-gradient(to right, #f472b6, #00ffff)', '--milestone-dot-inactive': 'rgba(0, 255, 255, 0.3)' },
+        gradients: { life: [[255, 0, 255], [236, 72, 153], [244, 114, 182], [250, 204, 21], [0, 255, 255]], prime: [[255, 255, 0], [250, 204, 21], [234, 88, 12], [255, 0, 0], [255, 0, 255]], year: [[0, 255, 255], [0, 200, 200]], day: [[244, 114, 182], [219, 39, 119]] }
+      },
+      { name: 'Ocean', icon: 'anchor',
+        vars: { /* ... Ocean theme vars ... */ '--bg-gradient-from': '#00395a', '--bg-gradient-to': '#001a29', '--widget-bg': 'rgba(255, 255, 255, 0.1)', '--widget-border': 'rgba(255, 255, 255, 0.15)', '--widget-shadow-inset-color': 'rgba(255, 255, 255, 0.08)', '--widget-shadow': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), inset 0 1px 2px 0 var(--widget-shadow-inset-color)', '--header-bg': 'rgba(0, 20, 30, 0.5)', '--header-border': 'rgba(255, 255, 255, 0.15)', '--text-primary': '#e0f7ff', '--text-secondary': '#b3e5fc', '--text-tertiary': '#81d4fa', '--text-accent': '#ffffff', '--text-accent-cyan': '#b2fefc', '--slot-future-inactive-bg': 'rgba(255, 255, 255, 0.1)', '--slot-past-inactive-bg': 'rgba(255, 255, 255, 0.2)', '--heatmap-future-bg': 'rgba(255, 255, 255, 0.05)', '--glow-color-rgb': '255, 255, 255', '--progress-bar-bg': 'linear-gradient(to right, #b3e5fc, #e0f7ff)', '--milestone-dot-inactive': 'rgba(255, 255, 255, 0.3)' },
+        gradients: { life: [[179, 254, 252], [45, 212, 191], [15, 118, 110], [12, 74, 90], [8, 47, 73]], prime: [[224, 242, 254], [186, 230, 253], [125, 211, 252], [56, 189, 248], [14, 116, 144]], year: [[103, 232, 249], [14, 165, 233]], day: [[112, 231, 249], [6, 182, 212]] }
+      },
+      { name: 'Sunset', icon: 'cloud-sun',
+        vars: { /* ... Sunset theme vars ... */ '--bg-gradient-from': '#4a001e', '--bg-gradient-to': '#0b0033', '--widget-bg': 'rgba(255, 255, 255, 0.08)', '--widget-border': 'rgba(255, 255, 255, 0.1)', '--widget-shadow-inset-color': 'rgba(255, 255, 255, 0.08)', '--widget-shadow': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), inset 0 1px 2px 0 var(--widget-shadow-inset-color)', '--header-bg': 'rgba(0, 0, 0, 0.2)', '--header-border': 'rgba(255, 255, 255, 0.1)', '--text-primary': '#ffedd5', '--text-secondary': '#fed7aa', '--text-tertiary': '#fdbf6b', '--text-accent': '#fbbf24', '--text-accent-cyan': '#f97316', '--slot-future-inactive-bg': 'rgba(255, 255, 255, 0.1)', '--slot-past-inactive-bg': 'rgba(255, 255, 255, 0.2)', '--heatmap-future-bg': 'rgba(255, 255, 255, 0.05)', '--glow-color-rgb': '251, 191, 36', '--progress-bar-bg': 'linear-gradient(to right, #fbbf24, #f97316)', '--milestone-dot-inactive': 'rgba(255, 255, 255, 0.3)' },
+        gradients: { life: [[253, 224, 71], [251, 191, 36], [249, 115, 22], [234, 88, 12], [217, 70, 239]], prime: [[253, 230, 138], [252, 211, 77], [251, 146, 60], [249, 115, 22], [234, 88, 12]], year: [[251, 191, 36], [249, 115, 22]], day: [[251, 146, 60], [234, 88, 12]] }
+      },
+      { name: 'Charcoal', icon: 'layers',
+        vars: { /* ... Charcoal theme vars ... */ '--bg-gradient-from': '#262626', '--bg-gradient-to': '#171717', '--widget-bg': 'rgba(255, 255, 255, 0.06)', '--widget-border': 'rgba(255, 255, 255, 0.1)', '--widget-shadow-inset-color': 'rgba(255, 255, 255, 0.05)', '--widget-shadow': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), inset 0 1px 2px 0 var(--widget-shadow-inset-color)', '--header-bg': 'rgba(0, 0, 0, 0.2)', '--header-border': 'rgba(255, 255, 255, 0.1)', '--text-primary': '#e5e5e5', '--text-secondary': '#a3a3a3', '--text-tertiary': '#737373', '--text-accent': '#d4d4d4', '--text-accent-cyan': '#fafafa', '--slot-future-inactive-bg': 'rgba(255, 255, 255, 0.08)', '--slot-past-inactive-bg': 'rgba(255, 255, 255, 0.2)', '--heatmap-future-bg': 'rgba(255, 255, 255, 0.05)', '--glow-color-rgb': '212, 212, 212', '--progress-bar-bg': 'linear-gradient(to right, #a3a3a3, #e5e5e5)', '--milestone-dot-inactive': 'rgba(255, 255, 255, 0.3)' },
+        gradients: { life: [[229, 231, 235], [209, 213, 219], [156, 163, 175], [107, 114, 128], [75, 85, 99]], prime: [[243, 244, 246], [229, 231, 235], [209, 213, 219], [156, 163, 175], [107, 114, 128]], year: [[229, 231, 235], [156, 163, 175]], day: [[209, 213, 219], [107, 114, 128]] }
+      },
+      { name: 'Mint', icon: 'ice-cream-2',
+        vars: { /* ... Mint theme vars ... */ '--bg-gradient-from': '#d1fae5', '--bg-gradient-to': '#ffffff', '--widget-bg': 'rgba(255, 255, 255, 0.8)', '--widget-border': 'rgba(0, 0, 0, 0.1)', '--widget-shadow-inset-color': 'rgba(0, 0, 0, 0.03)', '--widget-shadow': '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03), inset 0 1px 2px 0 var(--widget-shadow-inset-color)', '--header-bg': 'rgba(255, 255, 255, 0.7)', '--header-border': 'rgba(0, 0, 0, 0.1)', '--text-primary': '#064e3b', '--text-secondary': '#047857', '--text-tertiary': '#059669', '--text-accent': '#065f46', '--text-accent-cyan': '#10b981', '--slot-future-inactive-bg': 'rgba(0, 0, 0, 0.08)', '--slot-past-inactive-bg': 'rgba(0, 0, 0, 0.15)', '--heatmap-future-bg': 'rgba(0, 0, 0, 0.08)', '--glow-color-rgb': '6, 95, 70', '--progress-bar-bg': 'linear-gradient(to right, #065f46, #10b981)', '--milestone-dot-inactive': 'rgba(0, 0, 0, 0.3)' },
+        gradients: { life: [[110, 231, 183], [52, 211, 153], [16, 185, 129], [6, 128, 93], [4, 101, 74]], prime: [[167, 243, 208], [110, 231, 183], [52, 211, 153], [16, 185, 129], [5, 150, 105]], year: [[110, 231, 183], [16, 185, 129]], day: [[52, 211, 153], [6, 128, 93]] }
+      },
+      { name: 'Rose', icon: 'rose',
+        vars: { /* ... Rose theme vars ... */ '--bg-gradient-from': '#fff1f2', '--bg-gradient-to': '#fdf2f8', '--widget-bg': 'rgba(255, 255, 255, 0.8)', '--widget-border': 'rgba(150, 50, 50, 0.1)', '--widget-shadow-inset-color': 'rgba(0, 0, 0, 0.03)', '--widget-shadow': '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03), inset 0 1px 2px 0 var(--widget-shadow-inset-color)', '--header-bg': 'rgba(253, 232, 232, 0.7)', '--header-border': 'rgba(150, 50, 50, 0.1)', '--text-primary': '#581c37', '--text-secondary': '#831843', '--text-tertiary': '#9d174d', '--text-accent': '#be185d', '--text-accent-cyan': '#db2777', '--slot-future-inactive-bg': 'rgba(0, 0, 0, 0.08)', '--slot-past-inactive-bg': 'rgba(0, 0, 0, 0.15)', '--heatmap-future-bg': 'rgba(0, 0, 0, 0.08)', '--glow-color-rgb': '190, 24, 93', '--progress-bar-bg': 'linear-gradient(to right, #be185d, #db2777)', '--milestone-dot-inactive': 'rgba(0, 0, 0, 0.3)' },
+        gradients: { life: [[253, 164, 175], [251, 113, 133], [244, 63, 94], [219, 39, 119], [157, 23, 77]], prime: [[253, 202, 202], [252, 165, 165], [248, 113, 113], [220, 38, 38], [153, 27, 27]], year: [[251, 113, 133], [219, 39, 119]], day: [[244, 63, 94], [157, 23, 77]] }
+      },
+      { name: 'Matrix', icon: 'terminal',
+        vars: { /* ... Matrix theme vars ... */ '--bg-gradient-from': '#000000', '--bg-gradient-to': '#000000', '--widget-bg': 'rgba(0, 255, 0, 0.08)', '--widget-border': 'rgba(0, 255, 0, 0.2)', '--widget-shadow-inset-color': 'rgba(0, 255, 0, 0.1)', '--widget-shadow': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), inset 0 1px 2px 0 var(--widget-shadow-inset-color)', '--header-bg': 'rgba(0, 20, 0, 0.5)', '--header-border': 'rgba(0, 255, 0, 0.2)', '--text-primary': '#00ff00', '--text-secondary': '#00dd00', '--text-tertiary': '#00aa00', '--text-accent': '#00ff00', '--text-accent-cyan': '#32cd32', '--slot-future-inactive-bg': 'rgba(0, 255, 0, 0.1)', '--slot-past-inactive-bg': 'rgba(0, 255, 0, 0.15)', '--heatmap-future-bg': 'rgba(0, 255, 0, 0.05)', '--glow-color-rgb': '0, 255, 0', '--progress-bar-bg': 'linear-gradient(to right, #00aa00, #00ff00)', '--milestone-dot-inactive': 'rgba(0, 255, 0, 0.3)' },
+        gradients: { life: [[0, 255, 0], [0, 220, 0], [0, 180, 0], [0, 150, 0], [0, 120, 0]], prime: [[100, 255, 100], [50, 220, 50], [0, 180, 0], [0, 150, 0], [0, 120, 0]], year: [[0, 255, 0], [0, 180, 0]], day: [[0, 220, 0], [0, 150, 0]] }
+      },
+    ];
+    let currentTheme = themes[0];
+
+    // --- Onboarding State ---
+    let currentOnboardingStep = 0;
+    let onboardingSteps = [];
+    let previousOnboardingTarget = null; // Track previously highlighted element
+
+    // --- UI Element References ---
+    const $ = (selector) => document.querySelector(selector);
+    const $$ = (selector) => document.querySelectorAll(selector);
+
+    const loadingScreen = $('#loading-screen');
+    const dashboardUI = $('#dashboard-ui');
+    const settingsModal = $('#settings-modal');
+    const milestoneModal = $('#milestone-modal');
+    const themeSwitcher = $('#theme-switcher');
+    const onboardingOverlay = $('#onboarding-overlay');
+    const onboardingPopover = $('#onboarding-popover');
+    const onboardingHighlightFrame = $('#onboarding-highlight-frame'); // New reference
+    const onboardingStepsContainer = $('#onboarding-steps'); // New reference for dots
+
+    // --- Date & Time Utilities ---
+      const dateDiff = (start, end) => { if (!(start instanceof Date) || !(end instanceof Date)) { return { ms: 0, secs: 0, mins: 0, hours: 0, days: 0, weeks: 0, months: 0, years: 0 }; } const diffMs = end.getTime() - start.getTime(); if (diffMs < 0) { return { ms: 0, secs: 0, mins: 0, hours: 0, days: 0, weeks: 0, months: 0, years: 0, isPast: true }; } const diffSecs = diffMs / 1000; const diffMins = diffSecs / 60; const diffHours = diffMins / 60; const diffDays = diffHours / 24; const diffWeeks = diffDays / 7; const diffMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()); const diffYears = end.getFullYear() - start.getFullYear(); return { ms: diffMs, secs: diffSecs, mins: diffMins, hours: diffHours, days: diffDays, weeks: diffWeeks, months: diffMonths, years: diffYears, isPast: false }; };
+      const getAge = (birthDate) => { const today = new Date(); let years = today.getFullYear() - birthDate.getFullYear(); let months = today.getMonth() - birthDate.getMonth(); let days = today.getDate() - birthDate.getDate(); if (days < 0) { months--; days += new Date(today.getFullYear(), today.getMonth(), 0).getDate(); } if (months < 0) { years--; months += 12; } return { years, months, days }; };
+      const getWeekNumber = (d) => { d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1)); const weekNo = Math.ceil((( (d - yearStart) / 86400000) + 1) / 7); return weekNo; };
+      const getWeeksInYear = (year) => { const d = new Date(Date.UTC(year, 11, 28)); return getWeekNumber(d); };
+      const getTodayDateString = () => now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const formatDate = (date) => { // Simple DD-MM-YYYY formatter
+          const d = String(date.getDate()).padStart(2, '0');
+          const m = String(date.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
+          const y = date.getFullYear();
+          return `${d}-${m}-${y}`;
+      }
+      
+      const getDayOfYear = (date) => {
+        const start = new Date(date.getFullYear(), 0, 0);
+        const diff = date.getTime() - start.getTime();
+        const oneDay = 1000 * 60 * 60 * 24;
+        return Math.floor(diff / oneDay);
+      };
+
+    // --- Color Gradient Utilities ---
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const lerpColor = (c1, c2, t) => { const [r1, g1, b1] = c1; const [r2, g2, b2] = c2; const r = Math.round(lerp(r1, r2, t)); const g = Math.round(lerp(g1, g2, t)); const b = Math.round(lerp(b1, b2, t)); return `rgb(${r}, ${g}, ${b})`; };
+    const getGradientColor = (index, total, stops) => { if (total <= 1) return `rgb(${stops[0][0]}, ${stops[0][1]}, ${stops[0][2]})`; const numStops = stops.length; if (numStops === 1) return `rgb(${stops[0][0]}, ${stops[0][1]}, ${stops[0][2]})`; const t = index / (total - 1); const stopIndex = Math.floor(t * (numStops - 1)); if (stopIndex >= numStops - 1) { return `rgb(${stops[numStops - 1][0]}, ${stops[numStops - 1][1]}, ${stops[numStops - 1][2]})`; } const c1 = stops[stopIndex]; const c2 = stops[stopIndex + 1]; const segmentT = (t * (numStops - 1)) - stopIndex; return lerpColor(c1, c2, segmentT); };
+
+    // --- NEW: Color Utility ---
+    function hexToRgba(hex, alpha) {
+      if (!hex) hex = '#9ca3af'; // Default color
+      // Check if it's a valid hex
+      if (!/^#[0-9A-F]{6}$/i.test(hex)) {
+          console.warn(`Invalid hex color: ${hex}, using default.`);
+          hex = '#9ca3af';
+      }
+      try {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      } catch (e) {
+        console.error("Error parsing hex:", hex, e);
+        return `rgba(156, 163, 175, ${alpha})`; // Default rgba
+      }
+    }
+
+    // --- Debounce Utility ---
+    function debounce(func, wait) { let timeout; return function executedFunction(...args) { const later = () => { clearTimeout(timeout); func(...args); }; clearTimeout(timeout); timeout = setTimeout(later, wait); }; }
+
+    // --- Theme Functions ---
+      function applyTheme(themeName) {
+        const theme = themes.find(t => t.name === themeName);
+        if (!theme) { console.warn(`Theme "${themeName}" not found. Applying default.`); applyTheme('Dark'); return; }
+        currentTheme = theme;
+        for (const [key, value] of Object.entries(theme.vars)) { document.documentElement.style.setProperty(key, value); }
+        document.documentElement.style.setProperty('--glow-color', theme.vars['--glow-color-rgb'] || '96, 165, 250');
+        localStorage.setItem('lifeos-theme', themeName);
+        $$('#theme-switcher button').forEach(btn => {
+            if (btn.dataset.themeName === themeName) { btn.classList.add('active', 'bg-blue-600', 'text-white'); btn.classList.remove('text-[var(--text-secondary)]', 'hover:text-[var(--text-primary)]'); }
+            else { btn.classList.remove('active', 'bg-blue-600', 'text-white'); btn.classList.add('text-[var(--text-secondary)]', 'hover:text-[var(--text-primary)]'); }
+        });
+        if (calculations) { renderSlotsWidget(); renderLifeGrid(); renderDashboard(); }
+      }
+      function renderThemeSwitcher() { themeSwitcher.innerHTML = themes.map(theme => ` <button title="${theme.name}" data-theme-name="${theme.name}" class="p-1.5 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" > <i data-lucide="${theme.icon}" style="width: 18px; height: 18px;"></i> </button> `).join(''); lucide.createIcons(); }
+
+    // --- Render Functions ---
+    function renderStatCard(id, title, ...content) { const html = ` <div class="h-full bg-[var(--widget-bg)] backdrop-blur-xl border border-[var(--widget-border)] rounded-2xl p-4 flex flex-col min-w-[150px]" style="box-shadow: var(--widget-shadow);"> <h3 class="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-3 flex-shrink-0 flex items-center">${title}</h3> <div class="space-y-2 flex-grow flex flex-col justify-center"> ${content.join('')} </div> </div>`; if ($(id)) { $(id).innerHTML = html; } }
+    // REMOVED: renderNotepadWidget
+    function renderMotivationWidget() { const widget = $('#stat-motivation'); if (!widget) return; const quotesAvailable = motivationalQuotes && motivationalQuotes.length > 0; const quote = quotesAvailable ? motivationalQuotes[currentQuoteIndex % motivationalQuotes.length] : "Add some motivational quotes in settings!";
+      
+      // NEW: Add quote number
+      const quoteNumberDisplay = quotesAvailable ? `<span class="text-xs text-[var(--text-tertiary)] font-medium">${currentQuoteIndex + 1} / ${motivationalQuotes.length}</span>` : '';
+      
+      const content = `<p class="text-base font-medium text-[var(--text-primary)] italic">"${quote}"</p>`; const contentEl = $('#quote-content'); if (!contentEl) { 
+        // MODIFIED: Added controls and number display
+        widget.innerHTML = ` <div class="h-full bg-[var(--widget-bg)] backdrop-blur-xl border border-[var(--widget-border)] rounded-2xl p-4 flex flex-col min-w-[150px]" style="box-shadow: var(--widget-shadow);"> 
+          <div class="flex justify-between items-center mb-3 flex-shrink-0">
+            <h3 class="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wider flex items-center"> 
+              <i data-lucide="sparkles" class="w-4 h-4 mr-2 opacity-70"></i> Thought for the Moment 
+            </h3> 
+            <!-- NEW: Controls -->
+            <div class="flex items-center gap-1">
+                ${quoteNumberDisplay}
+                <button id="btn-prev-quote" title="Previous" class="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] p-0.5 rounded-full hover:bg-white/10 transition-colors">
+                    <i data-lucide="chevron-left" style="width: 16px; height: 16px;"></i>
+                </button>
+                <button id="btn-next-quote" title="Next" class="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] p-0.5 rounded-full hover:bg-white/10 transition-colors">
+                    <i data-lucide="chevron-right" style="width: 16px; height: 16px;"></i>
+                </button>
+            </div>
+          </div>
+          <div id="quote-content" class="space-y-2 flex-grow flex flex-col justify-center transition-opacity duration-500" style="opacity: 1;"> ${content} </div> 
+        </div>`; 
+        
+        // Add event listeners for new buttons
+        $('#btn-prev-quote')?.addEventListener('click', showPreviousQuote);
+        $('#btn-next-quote')?.addEventListener('click', showNextQuote);
+        lucide.createIcons(); // Create new icons
+
+      } else { 
+        contentEl.style.opacity = 0; 
+        
+        // Update quote number
+        const quoteNumEl = widget.querySelector('.flex.items-center.gap-1 > span');
+        if (quoteNumEl) {
+            quoteNumEl.textContent = quotesAvailable ? `${currentQuoteIndex + 1} / ${motivationalQuotes.length}` : '';
+        }
+
+        setTimeout(() => { contentEl.innerHTML = content; contentEl.style.opacity = 1; }, 300); 
+      } if (currentQuoteIndex >= motivationalQuotes.length) { currentQuoteIndex = 0; } }
+
+    // --- NEW Functions for quote cycling ---
+    function showNextQuote() {
+        if (motivationalQuotes.length > 0) {
+            currentQuoteIndex = (currentQuoteIndex + 1) % motivationalQuotes.length;
+            renderMotivationWidget();
+            resetQuoteTimer(); // Reset auto-cycle timer
+        }
+    }
+
+    function showPreviousQuote() {
+        if (motivationalQuotes.length > 0) {
+            currentQuoteIndex = (currentQuoteIndex - 1 + motivationalQuotes.length) % motivationalQuotes.length;
+            renderMotivationWidget();
+            resetQuoteTimer(); // Reset auto-cycle timer
+        }
+    }
+    
+    function resetQuoteTimer() {
+        clearInterval(quoteTimer);
+        quoteTimer = setInterval(() => { 
+            if (!$('#dashboard-ui').classList.contains('hidden') && motivationalQuotes.length > 0) { 
+                currentQuoteIndex = (currentQuoteIndex + 1) % motivationalQuotes.length; 
+                renderMotivationWidget(); 
+            } 
+        }, 15000);
+    }
+    // --- End NEW Functions ---
+
+    // Heatmap functions use --heatmap-future-bg
+    function renderSingleRowHeatmap(totalBlocks, livedBlocks, colorStops, label = "Block") {
+      let blocksHtml = '';
+      const currentBlockIndex = Math.max(0, Math.floor(livedBlocks) - 1);
+      for (let i = 0; i < totalBlocks; i++) {
+        let style = 'background-color: var(--heatmap-future-bg);';
+        let classes = 'w-full h-1.5 rounded-[1px] transition-colors';
+        if (i < currentBlockIndex) { style = `background-color: ${getGradientColor(i, currentBlockIndex + 1, colorStops)}`; }
+        else if (i === currentBlockIndex && livedBlocks > 0) { style = 'background-color: var(--text-accent);'; classes += ' animate-pulse-block ring-2 ring-white/70'; }
+        blocksHtml += `<div title="${label} ${i + 1}" class="${classes}" style="${style}"></div>`;
+      }
+      return `<div class="grid gap-0.5" style="grid-template-columns: repeat(${totalBlocks}, minmax(0, 1fr))">${blocksHtml}</div>`;
+    }
+    function renderLargeSingleRowHeatmap(totalBlocks, livedBlocks, colorStops) {
+      let blocksHtml = '';
+      const currentBlockIndex = Math.max(0, Math.floor(livedBlocks) - 1);
+      for (let i = 0; i < totalBlocks; i++) {
+        let style = 'background-color: var(--heatmap-future-bg);';
+        let classes = 'w-full h-4 rounded-sm transition-colors';
+        if (i < currentBlockIndex) { style = `background-color: ${getGradientColor(i, currentBlockIndex + 1, colorStops)}`; }
+        else if (i === currentBlockIndex && livedBlocks > 0) { style = 'background-color: var(--text-accent);'; classes += ' animate-pulse-block ring-2 ring-white/70'; }
+        blocksHtml += `<div title="Year ${i + 1}" class="${classes}" style="${style}"></div>`;
+      }
+      return `<div class="grid gap-1" style="grid-template-columns: repeat(${totalBlocks > 80 ? 80 : totalBlocks}, minmax(0, 1fr))">${blocksHtml}</div>`;
+    }
+    function renderMultiRowHeatmap(totalBlocks, livedBlocks, colorStops, milestoneBlocks, columns = 52) {
+      const totalRows = Math.ceil(totalBlocks / columns);
+      const currentBlockIndex = Math.max(0, Math.floor(livedBlocks) - 1);
+      let rowsHtml = '';
+      for (let y = 0; y < totalRows; y++) {
+        let blocksHtml = '';
+        for (let x = 0; x < columns; x++) {
+          const blockIndex = y * columns + x;
+          if (blockIndex >= totalBlocks) break;
+          let style = 'background-color: var(--heatmap-future-bg);';
+          let classes = 'w-full h-2.5 rounded-[2px] transition-colors';
+          const isMilestone = milestoneBlocks.has(blockIndex);
+          if (blockIndex < currentBlockIndex) { style = `background-color: ${getGradientColor(blockIndex, currentBlockIndex + 1, colorStops)}`; }
+          else if (blockIndex === currentBlockIndex && livedBlocks > 0) { style = 'background-color: var(--text-accent);'; classes += ' animate-pulse-block ring-2 ring-white/70'; }
+          if (isMilestone && blockIndex !== currentBlockIndex) { style = 'background-color: #facc15;'; }
+          blocksHtml += `<div title="Month ${blockIndex + 1}" class="${classes}" style="${style}"></div>`;
+        }
+        rowsHtml += `<div class="grid gap-0.5" style="grid-template-columns: repeat(${columns}, minmax(0, 1fr)); min-width: 500px">${blocksHtml}</div>`;
+      }
+      return `<div class="space-y-0.5 overflow-x-auto">${rowsHtml}</div>`;
+    }
+
+    function getWhatsLeftTodayHtml(calcs) { const { hoursLeftToday, minsLeftToday, secsLeftToday } = calcs; return ` <div class="pb-3" id="whats-left-today-container"> <h4 class="text-sm font-medium text-[var(--text-secondary)] mb-2 text-center">What's left for Today</h4> <div class="flex justify-between text-center w-full gap-1.5"> <div class="flex-1 bg-black/10 rounded-lg p-1.5"> <span class="text-xl font-bold text-[var(--text-primary)]">${String(Math.floor(hoursLeftToday)).padStart(2, '0')}</span> <span class="block text-[10px] text-[var(--text-tertiary)] uppercase">Hours</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1.5"> <span class="text-xl font-bold text-[var(--text-primary)]">${String(Math.floor(minsLeftToday % 60)).padStart(2, '0')}</span> <span class="block text-[10px] text-[var(--text-tertiary)] uppercase">Mins</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1.5"> <span class="text-xl font-bold text-[var(--text-primary)]">${String(Math.floor(secsLeftToday % 60)).padStart(2, '0')}</span> <span class="block text-[10px] text-[var(--text-tertiary)] uppercase">Secs</span> </div> </div> </div>`; }
+    function renderMilestoneWidget(milestone, isNext) { const isPending = milestone.status === 'pending'; const targetDate = new Date(milestone.targetDate); const diff = dateDiff(now, targetDate);
+      
+      const categoryId = milestone.category || 'default';
+      const category = goalCategories.find(c => c.id === categoryId) || goalCategories.find(c => c.id === 'default');
+      const categoryName = category.name;
+      const categoryIcon = category.icon || 'target';
+      const categoryColor = category.color || '#9ca3af';
+      
+      const statusColor = isPending ? (categoryColor) : '#4ade80'; // Use category color if pending
+
+      // --- MODIFIED ICON LOGIC ---
+      let icon;
+      if (isPending) {
+        if (isNext) {
+          icon = 'hourglass'; // Special icon for the *very next* goal
+        } else {
+          icon = categoryIcon; // Use category-based icon
+        }
+      } else {
+        icon = 'check-circle'; // Completed icon
+      }
+      // --- END MODIFIED ICON LOGIC ---
+
+      const iconPulse = isPending && isNext ? 'animate-icon-pulse' : '';
+      // const categoryName = category.charAt(0).toUpperCase() + category.slice(1); // REMOVED
+      // const categoryClass = `pill-${category}`; // REMOVED
+      const categoryStyle = `background-color: ${hexToRgba(categoryColor, 0.1)}; color: ${categoryColor}; border: 1px solid ${hexToRgba(categoryColor, 0.2)};`;
+
+      let countdownHtml = ''; if (isPending && !diff.isPast) { 
+        // MODIFIED: Removed flex-grow
+        countdownHtml = ` <div class="flex items-center pt-2" data-countdown-to="${milestone.targetDate}"> <div class="flex justify-between text-center w-full gap-1"> <div class="flex-1 bg-black/10 rounded-lg p-1"> <span class="text-base font-bold text-[var(--text-primary)]">${String(Math.floor(diff.days)).padStart(2, '0')}</span> <span class="block text-[9px] text-[var(--text-tertiary)] uppercase">Days</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1"> <span class="text-base font-bold text-[var(--text-primary)]">${String(Math.floor(diff.hours % 24)).padStart(2, '0')}</span> <span class="block text-[9px] text-[var(--text-tertiary)] uppercase">Hrs</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1"> <span class="text-base font-bold text-[var(--text-primary)]">${String(Math.floor(diff.mins % 60)).padStart(2, '0')}</span> <span class="block text-[9px] text-[var(--text-tertiary)] uppercase">Min</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1"> <span class="text-base font-bold text-[var(--text-primary)]">${String(Math.floor(diff.secs % 60)).padStart(2, '0')}</span> <span class="block text-[9px] text-[var(--text-tertiary)] uppercase">Sec</span> </div> </div> </div>`; 
+      } else { 
+        // MODIFIED: Removed flex-grow
+        countdownHtml = ` <div class="flex items-center justify-center min-h-[40px]"> <span class="text-xs font-medium ${diff.isPast ? 'text-red-400' : 'text-green-300'}"> ${diff.isPast ? 'Past Due' : 'Completed'} </span> </div>`; 
+      } 
+      const smartDate = targetDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); let subtaskHtml = ''; if (milestone.milestones && milestone.milestones.length > 0) { const totalSubtasks = milestone.milestones.length; const completedSubtasks = milestone.milestones.filter(st => st.completed).length; let dotsHtml = ''; for(let i = 0; i < totalSubtasks; i++) { const dotClass = i < completedSubtasks ? 'bg-green-400' : 'bg-[var(--milestone-dot-inactive)]'; dotsHtml += `<div class="w-2 h-2 rounded-full ${dotClass}"></div>`; } subtaskHtml = ` <div class="mb-2 space-y-1"> <div class="flex justify-between items-center text-xs text-[var(--text-tertiary)]"> <span>Milestones</span> <span class="font-medium">${completedSubtasks} / ${totalSubtasks}</span> </div> <div class="flex items-center gap-1 flex-wrap"> ${dotsHtml} </div> </div>`; } 
+      
+      // MODIFIED: Added a clickable wrapper div with flex-grow
+      const html = ` <div class="h-full bg-[var(--widget-bg)] backdrop-blur-xl border border-[var(--widget-border)] rounded-2xl p-3 flex flex-col transition-all" style="box-shadow: var(--widget-shadow);"> 
+        <div data-action="edit" class="flex-grow flex flex-col cursor-pointer">
+          <div class="flex items-center justify-between gap-2 mb-2"> <div class="flex items-center gap-2 overflow-hidden"> <i data-lucide="${icon}" class="flex-shrink-0 ${iconPulse}" style="width: 16px; height: 16px; color: ${statusColor};"></i> <h3 class="text-sm font-semibold text-[var(--text-primary)] truncate" title="${milestone.title}"> ${milestone.title} </h3> </div> <i data-lucide="${isPending ? 'circle' : 'check-circle'}" class="flex-shrink-0" style="width: 14px; height: 14px; color: ${statusColor};"></i> </div> 
+          <div class="flex items-center text-xs mb-2 text-[var(--text-secondary)]"> <i data-lucide="calendar" class="mr-1.5 flex-shrink-0" style="width: 12px; height: 12px;"></i> <span>${smartDate}</span> </div> 
+          ${subtaskHtml} 
+          ${countdownHtml} 
+        </div>
+        <div class="mt-auto flex justify-between items-center pt-2 border-t border-[var(--widget-border)]"> 
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full" style="${categoryStyle}"> ${categoryName} </span> <div class="flex gap-0.5"> ${isPending ? ` <button data-action="toggle" title="Mark Complete" class="text-green-400 hover:text-green-300 transition-colors p-1 rounded-full hover:bg-white/10"> <i data-lucide="check" style="width: 16px; height: 16px;"></i> </button>` : ''} <button data-action="edit" title="Edit" class="text-[var(--text-tertiary)] hover:text-blue-400 transition-colors p-1 rounded-full hover:bg-white/10"> <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i> </button> <button data-action="delete" title="Delete" class="text-[var(--text-tertiary)] hover:text-red-400 transition-colors p-1 rounded-full hover:bg-white/10"> <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> </button> </div> 
+        </div> 
+      </div>`; 
+      
+      const el = document.createElement('div'); el.innerHTML = html.trim(); const widget = el.firstChild; 
+      
+      // MODIFIED: Added stopPropagation to all button listeners
+      const toggleBtn = widget.querySelector('[data-action="toggle"]'); 
+      if (toggleBtn) { 
+        toggleBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          handleMilestoneToggle(milestone);
+        }); 
+      } 
+      
+      // MODIFIED: Changed to querySelectorAll to handle main click area + edit button
+      widget.querySelectorAll('[data-action="edit"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openEditMilestoneModal(milestone);
+        });
+      });
+      
+      widget.querySelector('[data-action="delete"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleMilestoneDelete(milestone.id);
+      }); 
+      return widget; 
+    }
+      function renderLifeGrid() { if (!calculations) { calculations = updateCalculations(); if (!calculations) return; } const { maxLifespan } = settings; const { monthsLived, primeMonthsLived, totalPrimeMonths, age } = calculations; const yearsLived = age.years + age.months / 12; const totalLifeMonths = maxLifespan * 12; const bd = new Date(settings.birthDate); const primeStartDate = new Date(bd); primeStartDate.setFullYear(bd.getFullYear() + settings.primeStart); const mTotalMonths = new Set(); const mPrimeMonths = new Set(); milestones.forEach(m => { const targetDate = new Date(m.targetDate); if (targetDate < bd) return; mTotalMonths.add(Math.floor(dateDiff(bd, targetDate).months)); if (targetDate >= primeStartDate) { const pMonths = Math.floor(dateDiff(primeStartDate, targetDate).months); if (pMonths >= 0) mPrimeMonths.add(pMonths); } }); const yearsGridHtml = renderLargeSingleRowHeatmap(maxLifespan, yearsLived, currentTheme.gradients.life); const primeGridHtml = renderMultiRowHeatmap(totalPrimeMonths, primeMonthsLived, currentTheme.gradients.prime, mPrimeMonths); const totalGridHtml = renderMultiRowHeatmap(totalLifeMonths, monthsLived, currentTheme.gradients.life, mTotalMonths); const renderGridSection = (title, percent, gridHtml) => ` <div class="mb-4"> <div class="flex justify-between items-baseline mb-3"> <h3 class="text-lg font-semibold text-[var(--text-primary)]">${title}</h3> <span class="text-xl font-bold text-[var(--text-secondary)]">${percent.toFixed(0)}%</span> </div> ${gridHtml} </div>`; $('#life-grid-container').innerHTML = ` <div class="bg-[var(--widget-bg)] backdrop-blur-lg border border-[var(--widget-border)] shadow-lg rounded-2xl p-5"> <h2 class="text-2xl font-semibold text-[var(--text-primary)] mb-6">Life Progress</h2> ${renderGridSection( 'Overall Life Progress (Years)', (yearsLived / maxLifespan) * 100, yearsGridHtml )} ${renderGridSection( 'Prime Years Progress (Months)', totalPrimeMonths > 0 ? (primeMonthsLived / totalPrimeMonths) * 100 : 0, primeGridHtml )} ${renderGridSection( 'Overall Life Progress (Months)', totalLifeMonths > 0 ? (monthsLived / totalLifeMonths) * 100 : 0, totalGridHtml )} </div>`; }
+
+    // MODIFIED: renderSlotsWidget with enhanced visuals
+    function renderSlotsWidget() {
+      if (!calculations) return;
+      const { activeStart, activeEnd, slotsPassed, slotProgressPercent, minsLeftInSlot } = calculations;
+      const dayProgressPercent = (slotsPassed / 48) * 100;
+      let blocksHtml = '';
+      const dayGradient = currentTheme.gradients.day;
+
+      for (let i = 0; i < 48; i++) {
+        const slotHour = Math.floor(i / 2); const slotMinute = (i % 2) * 30;
+        const timeStart = `${String(slotHour).padStart(2, '0')}:${String(slotMinute).padStart(2, '0')}`;
+        const endHour = slotMinute === 30 ? slotHour + 1 : slotHour; const endMinute = slotMinute === 30 ? 0 : 30;
+        const timeEnd = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`;
+        const title = `Slot ${i + 1} (${timeStart} - ${timeEnd})`;
+        const isActive = slotHour >= activeStart && slotHour < activeEnd;
+        const isCurrent = i === slotsPassed; const isPast = i < slotsPassed;
+        let blockClasses = 'h-3.5 rounded-[3px] relative overflow-hidden transition-colors';
+        let blockStyle = '';
+
+        if (isCurrent) {
+          blockClasses += ' ring-2 ring-white/90 shadow-lg';
+          blockStyle = `background-color: var(--text-accent); opacity: 0.9;`;
+        } else if (isPast) {
+          blockClasses += ' slot-past'; // Add class for cross mark
+          const color = getGradientColor(i, slotsPassed > 0 ? slotsPassed : 1 , dayGradient); // Ensure total > 0
+          blockStyle = `background-color: ${color}; opacity: 0.7;`;
+        } else {
+          blockStyle = `background-color: var(--slot-future-inactive-bg);`;
+          if (isActive) { /* Optional: Different style for future active */ }
+        }
+        blocksHtml += `<div title="${title}" class="${blockClasses}" style="${blockStyle}"></div>`;
+      }
+
+      // Enhanced HTML with gradient bars and glow animation
+      const html = `
+        <div class="h-full bg-[var(--widget-bg)] backdrop-blur-xl border border-[var(--widget-border)] rounded-2xl p-4 flex flex-col min-w-[150px]" style="box-shadow: var(--widget-shadow);">
+          <h3 class="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-3 flex-shrink-0 flex items-center">
+            <i data-lucide="align-horizontal-distribute-start" class="w-4 h-4 mr-2 opacity-70"></i>
+            Today's Time Slots
+          </h3>
+          <div class="flex-grow flex flex-col justify-center space-y-4">
+
+            ${getWhatsLeftTodayHtml(calculations)}
+
+            <div class="space-y-4 pt-4 border-t border-[var(--widget-border)]">
+              <!-- Day Progress -->
+              <div class="space-y-2">
+                <div class="flex justify-between text-sm font-medium text-[var(--text-secondary)]">
+                  <span>Day Progress</span>
+                  <span id="day-progress-label">Slot ${slotsPassed + 1} / 48</span>
+                </div>
+                <div class="w-full bg-white/10 rounded-full h-3 relative overflow-hidden" title="${dayProgressPercent.toFixed(0)}% complete">
+                  <div id="day-progress-bar" class="h-3 rounded-full progress-bar-fill" style="width: ${dayProgressPercent}%"></div>
+                  <span id="day-progress-percent-label" class="absolute inset-0 flex items-center justify-center text-[10px] font-extrabold text-white mix-blend-difference" style="line-height: 1;">
+                    ${Math.floor(dayProgressPercent)}%
+                  </span>
+                </div>
+              </div>
+
+              <!-- Current Slot Progress -->
+              <div class="space-y-2">
+                <div class="flex justify-between text-sm font-medium text-[var(--text-secondary)]">
+                  <span>Current Slot Progress</span>
+                    <span id="slot-progress-time" class="font-semibold text-[var(--text-primary)] text-base flex items-center">
+                      <i data-lucide="timer" class="w-4 h-4 mr-1.5 opacity-80 animate-pulse"></i>
+                     ${Math.floor(minsLeftInSlot)}m ${60 - (now.getSeconds() % 60)}s left
+                    </span>
+                </div>
+                <!-- Removed animate-subtleGlow from container, ensure inner has progress-bar-fill -->
+                <div class="w-full bg-white/10 rounded-full h-3 relative overflow-hidden">
+                  <div id="slot-progress-bar-new" class="h-3 rounded-full progress-bar-fill" style="width: ${slotProgressPercent}%"></div>
+                  <span id="slot-progress-label" class="absolute inset-0 flex items-center justify-center text-[10px] font-extrabold text-white mix-blend-difference" style="line-height: 1;">
+                    ${Math.floor(slotProgressPercent)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 48-Block Grid -->
+            <div class="space-y-2">
+              <div class="grid grid-cols-12 gap-1.5">
+                ${blocksHtml}
+              </div>
+              <div class="flex justify-between text-xs text-[var(--text-tertiary)] mt-1.5 px-0.5">
+                <span>00:00</span>
+                <span>06:00</span>
+                <span>12:00</span>
+                <span>18:00</span>
+                <span>24:00</span>
+              </div>
+            </div>
+          </div>
+        </div>`;
+
+      if ($('#stat-slots')) { $('#stat-slots').innerHTML = html; lucide.createIcons(); }
+    }
+
+      // MODIFIED: Render Todo List Widget
+    function renderTodoListWidget() {
+      const widget = $('#stat-todolist');
+      if (!widget) return;
+
+      const completedCount = dailyTodos.filter(todo => todo.completed).length;
+      const totalCount = dailyTodos.length;
+      const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+      let listHtml = '<p class="text-center text-[var(--text-tertiary)] text-sm py-4">No tasks for today. Add one!</p>';
+      if (dailyTodos.length > 0) {
+        listHtml = dailyTodos.map(todo => `
+          <li data-id="${todo.id}">
+            <input type="checkbox" ${todo.completed ? 'checked' : ''}>
+            <span class="text-sm">${todo.text}</span>
+            <button class="todo-delete-btn" title="Delete Task">
+              <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+            </button>
+          </li>
+        `).join('');
+      }
+
+      widget.innerHTML = `
+        <div class="h-full bg-[var(--widget-bg)] backdrop-blur-xl border border-[var(--widget-border)] rounded-2xl p-4 flex flex-col" style="box-shadow: var(--widget-shadow);">
+          <div class="flex justify-between items-center mb-3 flex-shrink-0">
+             <h3 class="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wider flex items-center">
+               <i data-lucide="check-square" class="w-4 h-4 mr-2 opacity-70"></i>
+               Tasks
+             </h3>
+             <button id="btn-reset-todos" title="Reset to Default List" class="text-[var(--text-tertiary)] hover:text-blue-400 transition-colors p-1">
+                 <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+             </button>
+          </div>
+
+
+          <div class="flex-shrink-0 mb-3 space-y-1.5">
+              <div class="flex justify-between text-xs font-medium text-[var(--text-secondary)]">
+                <span>Progress</span>
+                <span id="todo-progress-text">${progressPercent.toFixed(0)}% Done</span>
+              </div>
+              <div class="w-full bg-white/10 rounded-full h-2 relative overflow-hidden">
+                <div id="todo-progress-bar" class="h-2 rounded-full progress-bar-fill bg-green-500" style="width: ${progressPercent}%; background: linear-gradient(to right, #4ade80, #a7f3d0);"></div>
+              </div>
+          </div>
+
+
+          <div class="flex gap-2 mb-3 flex-shrink-0">
+             <input type="text" id="new-todo-input" placeholder="Add a new task..." class="flex-grow px-3 py-2 bg-black/10 border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400 text-sm">
+             <button id="btn-add-todo" class="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center justify-center">
+                 <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
+             </button>
+          </div>
+
+
+          <div id="todo-list-container" class="flex-grow overflow-y-auto mb-3 pr-1">
+             <ul id="todo-list">
+               ${listHtml}
+             </ul>
+          </div>
+        </div>`;
+
+      // Add event listeners after rendering
+      $('#btn-add-todo').addEventListener('click', handleAddTodo);
+      $('#new-todo-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleAddTodo();
+      });
+      $('#btn-reset-todos').addEventListener('click', handleResetTodos);
+      $('#todo-list').addEventListener('change', (e) => {
+        if (e.target.type === 'checkbox') {
+          const id = e.target.closest('li').dataset.id;
+          handleToggleTodo(id);
+        }
+      });
+      $('#todo-list').addEventListener('click', (e) => {
+        const deleteButton = e.target.closest('.todo-delete-btn');
+        if (deleteButton) {
+          const id = deleteButton.closest('li').dataset.id;
+          handleDeleteTodo(id);
+        }
+      });
+
+      lucide.createIcons();
+    }
+
+
+      function updateCalculations() { if (!settings.birthDate) return null; const today = now; const bd = new Date(settings.birthDate); const age = getAge(bd); const endOfDay = new Date(today); endOfDay.setHours(23, 59, 59, 999); const { secs: secsLeftToday, mins: minsLeftToday, hours: hoursLeftToday } = dateDiff(today, endOfDay); const startOfWeek = new Date(today); startOfWeek.setHours(0, 0, 0, 0); startOfWeek.setDate(startOfWeek.getDate() - (startOfWeek.getDay() === 0 ? 6 : startOfWeek.getDay() - 1)); const endOfWeek = new Date(startOfWeek); endOfWeek.setDate(endOfWeek.getDate() + 6); endOfWeek.setHours(23, 59, 59, 999); const startOfActive = new Date(today); startOfActive.setHours(settings.activeStart, 0, 0, 0); const endOfActive = new Date(today); endOfActive.setHours(settings.activeEnd, 0, 0, 0); const totalActiveHours = settings.activeEnd - settings.activeStart; let activeHoursPassed = 0; if (today > startOfActive) { activeHoursPassed = dateDiff(startOfActive, today > endOfActive ? endOfActive : today).hours; } const endOfYear = new Date(today.getFullYear(), 11, 31, 23, 59, 59, 999); const { days: daysLeftYear, weeks: weeksLeftYear, months: monthsLeftYear } = dateDiff(today, endOfYear); const totalWeeksInYear = getWeeksInYear(today.getFullYear()); const currentWeekNumber = getWeekNumber(today); const { days: daysLeftWeek, hours: hoursLeftWeek } = dateDiff(today, endOfWeek); const endDate = new Date(bd); endDate.setFullYear(bd.getFullYear() + settings.maxLifespan); const { weeks: weeksLeftLife, months: monthsLeftLife, years: yearsLeftLife } = dateDiff(today, endDate); const { weeks: weeksLived } = dateDiff(bd, today); const totalLifeMonths = settings.maxLifespan * 12; const { months: monthsLived } = dateDiff(bd, today); const primeStartDate = new Date(bd); primeStartDate.setFullYear(bd.getFullYear() + settings.primeStart); const primeEndDate = new Date(bd); primeEndDate.setFullYear(bd.getFullYear() + settings.primeEnd); const totalPrimeMonths = (settings.primeEnd - settings.primeStart) * 12; let primeMonthsLived = 0; if (today > primeStartDate) { primeMonthsLived = dateDiff(primeStartDate, today > primeEndDate ? primeEndDate : today).months; } const { years: primeYearsLeft, months: primeMonthsLeft, weeks: primeWeeksLeft } = dateDiff(today, primeEndDate); const startOfDay = new Date(now); startOfDay.setHours(0, 0, 0, 0); let lifeStage = "Legacy"; if (age.years < settings.primeStart) lifeStage = "Formative"; else if (age.years < settings.primeEnd) lifeStage = "Prime"; const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]; const dayOfWeek = now.getDay(); const dayName = dayNames[dayOfWeek]; const totalSlots = 48; const minsPassedToday = dateDiff(startOfDay, now).mins; const slotsPassed = Math.floor(minsPassedToday / 30); const minsIntoSlot = minsPassedToday % 30; const minsLeftInSlot = 30 - minsIntoSlot; const slotProgressPercent = (minsIntoSlot / 30) * 100;
+        
+        // NEW: Day of Year calculations
+        const dayOfYear = getDayOfYear(today);
+        const isLeap = (today.getFullYear() % 4 === 0 && today.getFullYear() % 100 !== 0) || today.getFullYear() % 400 === 0;
+        const totalDaysInYear = isLeap ? 366 : 365;
+        const dayOfYearProgress = (dayOfYear / totalDaysInYear) * 100;
+        
+        return { age, secsLeftToday, minsLeftToday, hoursLeftToday, totalActiveHours, activeHoursPassed, daysLeftYear, weeksLeftYear, monthsLeftYear, daysLeftWeek, hoursLeftWeek, totalWeeksInYear, currentWeekNumber, weeksLeftLife, monthsLeftLife, yearsLeftLife, weeksLived, totalLifeMonths, monthsLived, totalPrimeMonths, primeMonthsLived, primeYearsLeft, primeMonthsLeft, primeWeeksLeft, startOfDay, lifeStage, dayOfWeek, dayName, totalSlots, slotsPassed, minsLeftInSlot, minsIntoSlot, slotProgressPercent, dayOfYear, totalDaysInYear, dayOfYearProgress };
+      }
+
+      // MODIFIED: renderDashboard to use combined widget
+      function renderDashboard() {
+        calculations = updateCalculations();
+        if (!calculations) {
+          // Handle loading/initial setup state
+          loadingScreen.innerHTML = ` <div class="text-center"> <p class="text-xl text-[var(--text-secondary)] mb-4">Welcome! Let's get you set up.</p> <button id="btn-welcome-settings" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg shadow-lg transition-colors flex items-center gap-2"> <i data-lucide="settings" style="width: 20px; height: 20px;"></i> Open Settings </button> </div>`;
+          lucide.createIcons();
+          $('#btn-welcome-settings').addEventListener('click', () => openSettingsModal());
+          loadingScreen.classList.remove('hidden');
+          dashboardUI.classList.add('hidden');
+          if (!settingsModal.classList.contains('hidden')) {} else { openSettingsModal(); }
+          return;
+        }
+        loadingScreen.classList.add('hidden');
+        dashboardUI.classList.remove('hidden');
+
+        const { age, daysLeftYear, weeksLeftYear, monthsLeftYear, daysLeftWeek, hoursLeftWeek, primeYearsLeft, primeMonthsLeft, primeWeeksLeft, yearsLeftLife, totalWeeksInYear, currentWeekNumber, dayOfWeek, dayName, dayOfYear, totalDaysInYear, dayOfYearProgress } = calculations;
+
+        // --- MODIFIED: Render Combined Time & Week Widget ---
+        const dayProgressNum = dayOfWeek === 0 ? 7 : dayOfWeek;
+        const weekGridHtml = renderSingleRowHeatmap(7, dayProgressNum, currentTheme.gradients.day, "Day");
+        
+        // MOVED: dayOfYearProgressHtml was moved from here to the 'stat-progress-year' card render call below.
+        
+        $('#stat-time-week').innerHTML = `
+            <div class="h-full bg-[var(--widget-bg)] backdrop-blur-xl border border-[var(--widget-border)] rounded-2xl p-4 flex flex-col" style="box-shadow: var(--widget-shadow);">
+              <div class="text-center mb-4">
+                <p id="time-display" class="text-4xl font-bold text-[var(--text-primary)]">${now.toLocaleTimeString()}</p>
+                <p id="date-display" class="text-lg font-medium text-[var(--text-secondary)]">${formatDate(now)}</p>
+              </div>
+              <div class="space-y-3 mt-auto">
+                <div class="flex items-baseline justify-between gap-4">
+                    <div>
+                      <p class="text-xl font-bold text-[var(--text-primary)]">${dayName}</p>
+                      <p class="text-base font-medium text-[var(--text-secondary)]">Week ${currentWeekNumber} / ${totalWeeksInYear}</p>
+                    </div>
+                    <span class="text-lg font-bold text-[var(--text-secondary)]">${dayProgressNum} / 7</span>
+                  </div>
+                  <div class="mt-1 mb-3">
+                    ${weekGridHtml}
+                  </div>
+                  
+            </div>
+          `;
+        // --- End Modified Widget ---
+
+        // Render remaining static widgets
+        renderStatCard('#stat-age', '<i data-lucide="cake" class="w-4 h-4 mr-2 opacity-70"></i> Current Age', `<div class="flex justify-between text-center w-full gap-1.5"> <div class="flex-1 bg-black/10 rounded-lg p-1.5"> <span class="text-xl font-bold text-[var(--text-primary)]">${String(age.years).padStart(2, '0')}</span> <span class="block text-[10px] text-[var(--text-tertiary)] uppercase">Years</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1.5"> <span class="text-xl font-bold text-[var(--text-primary)]">${String(age.months).padStart(2, '0')}</span> <span class="block text-[10px] text-[var(--text-tertiary)] uppercase">Months</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1.5"> <span class="text-xl font-bold text-[var(--text-primary)]">${String(age.days).padStart(2, '0')}</span> <span class="block text-[10px] text-[var(--text-tertiary)] uppercase">Days</span> </div> </div>` );
+        renderStatCard('#stat-week-left', '<i data-lucide="calendar-check-2" class="w-4 h-4 mr-2 opacity-70"></i> What\'s left this Week', `<div class="flex justify-between text-center w-full gap-1.5"> <div class="flex-1 bg-black/10 rounded-lg p-1.5"> <span class="text-xl font-bold text-[var(--text-primary)]">${String(Math.floor(daysLeftWeek)).padStart(2, '0')}</span> <span class="block text-[10px] text-[var(--text-tertiary)] uppercase">Days</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1.5"> <span class="text-xl font-bold text-[var(--text-primary)]">${String(Math.floor(hoursLeftWeek % 24)).padStart(2, '0')}</span> <span class="block text-[10px] text-[var(--text-tertiary)] uppercase">Hours</span> </div> </div>` );
+        renderStatCard('#stat-year', '<i data-lucide="calendar" class="w-4 h-4 mr-2 opacity-70"></i> What\'s left for This Year', `<div class="flex justify-between text-center w-full gap-1.5"> <div class="flex-1 bg-black/10 rounded-lg p-1.5"> <span class="text-xl font-bold text-[var(--text-primary)]">${String(Math.floor(monthsLeftYear)).padStart(2, '0')}</span> <span class="block text-[10px] text-[var(--text-tertiary)] uppercase">Months</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1.5"> <span class="text-xl font-bold text-[var(--text-primary)]">${String(Math.floor(weeksLeftYear)).padStart(2, '0')}</span> <span class="block text-[10px] text-[var(--text-tertiary)] uppercase">Weeks</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1.5"> <span class="text-xl font-bold text-[var(--text-primary)]">${String(Math.floor(daysLeftYear)).padStart(2, '0')}</span> <span class="block text-[10px] text-[var(--text-tertiary)] uppercase">Days</span> </div> </div>` );
+        renderStatCard('#stat-remaining', '<i data-lucide="hourglass" class="w-4 h-4 mr-2 opacity-70"></i> Remaining Time', `<div class="flex justify-between text-center w-full gap-1.5"> <div class="flex-1 bg-black/10 rounded-lg p-1.5"> <span class="text-xl font-bold text-[var(--text-primary)]">${String(Math.floor(primeYearsLeft)).padStart(2, '0')}</span> <span class="block text-[10px] text-[var(--text-tertiary)] uppercase">Prime Yrs</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1.5"> <span class="text-xl font-bold text-[var(--text-primary)]">${String(Math.floor(primeMonthsLeft)).padStart(2, '0')}</span> <span class="block text-[10px] text-[var(--text-tertiary)] uppercase">Prime Mos</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1.5"> <span class="text-xl font-bold text-[var(--text-primary)]">${String(Math.floor(primeWeeksLeft)).padStart(2, '0')}</span> <span class="block text-[10px] text-[var(--text-tertiary)] uppercase">Prime Wks</span> </div> </div>`, `<p class="text-lg font-semibold text-[var(--text-primary)] mt-3 pt-3 border-t border-[var(--widget-border)] text-center">${Math.floor(yearsLeftLife)} <span class="text-base text-[var(--text-secondary)]">Total Yrs Left</span></p>` );
+        
+        // MODIFIED: Added Day of Year progress to this card
+        renderStatCard(
+            '#stat-progress-year', 
+            '<i data-lucide="bar-chart-big" class="w-4 h-4 mr-2 opacity-70"></i> Progress This Year', 
+            // 1. Day of Year
+            `<div class="space-y-2">
+                <div class="flex justify-between text-sm font-medium text-[var(--text-secondary)]">
+                    <span>Day of Year</span>
+                    <span>${dayOfYear}/${totalDaysInYear}</span>
+                </div>
+                <div class="w-full bg-white/10 rounded-full h-2 relative overflow-hidden" title="${dayOfYearProgress.toFixed(0)}% complete">
+                    <div class="h-2 rounded-full progress-bar-fill" style="width: ${dayOfYearProgress}%; background: linear-gradient(to right, #60a5fa, #a7f3d0);"></div>
+                </div>
+            </div>`,
+            // 2. Weeks
+            `<div class="space-y-2">
+                <div class="flex justify-between text-sm font-medium text-[var(--text-secondary)]">
+                    <span>Weeks</span>
+                    <span>${currentWeekNumber}/${totalWeeksInYear}</span>
+                </div>
+                ${renderSingleRowHeatmap(totalWeeksInYear, currentWeekNumber, currentTheme.gradients.year, "Week")}
+            </div>`, 
+            // 3. Months
+            `<div class="space-y-2">
+                <div class="flex justify-between text-sm font-medium text-[var(--text-secondary)]">
+                    <span>Months</span>
+                    <span>${now.getMonth() + 1}/12</span>
+                </div>
+                ${renderSingleRowHeatmap(12, now.getMonth() + 1, currentTheme.gradients.year, "Month")}
+            </div>`
+        );
+        // Removed renderStatCard for stat-current-week
+
+        // Render dynamic widgets
+        renderMotivationWidget();
+        renderSlotsWidget();
+        renderTodoListWidget();
+
+        lastSlotsPassed = calculations.slotsPassed;
+
+        // Removed rendering for stat-time as it's now in the combined widget
+
+        // Render Milestones (no change needed here)
+        const pendingGrid = $('#pending-milestones-grid'); const completedGrid = $('#completed-milestones-grid');
+        pendingGrid.innerHTML = ''; completedGrid.innerHTML = '';
+        const pending = milestones.filter(m => m.status === 'pending').sort((a, b) => new Date(a.targetDate) - new Date(b.targetDate));
+        const completed = milestones.filter(m => m.status === 'completed').sort((a, b) => new Date(b.targetDate) - new Date(a.targetDate));
+        if (pending.length > 0) { pendingGrid.className = `grid ${pending.length === 1 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'} gap-4`; pending.forEach((m, index) => pendingGrid.appendChild(renderMilestoneWidget(m, index === 0))); }
+        else { pendingGrid.className = 'grid grid-cols-1'; pendingGrid.innerHTML = `<div class="h-full bg-[var(--widget-bg)] backdrop-blur-lg border border-[var(--widget-border)] shadow-lg rounded-2xl p-5 flex flex-col min-w-[200px] text-center"><p class="text-[var(--text-tertiary)] m-auto">No pending goals. Add one!</p></div>`; }
+        if (completed.length > 0) { completedGrid.className = `grid ${completed.length === 1 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'} gap-4`; completed.forEach(m => completedGrid.appendChild(renderMilestoneWidget(m, false))); }
+        else { completedGrid.className = 'grid grid-cols-1'; completedGrid.innerHTML = `<div class="h-full bg-[var(--widget-bg)] backdrop-blur-lg border border-[var(--widget-border)] shadow-lg rounded-2xl p-5 flex flex-col min-w-[200px] text-center"><p class="text-[var(--text-tertiary)] m-auto">No completed goals.</p></div>`; }
+
+        if (!$('#life-grid-container').querySelector('div')) { renderLifeGrid(); }
+
+        lucide.createIcons();
+      }
+
+      // --- NEW Todo List Functions ---
+      function saveTodos() {
+        try {
+          const dataToSave = { date: getTodayDateString(), todos: dailyTodos };
+          localStorage.setItem('lifeos-daily-todos', JSON.stringify(dataToSave));
+        } catch (error) {
+          console.error("Error saving todos:", error);
+        }
+      }
+
+      function loadTodos() {
+        const todayStr = getTodayDateString();
+        try {
+          const savedData = localStorage.getItem('lifeos-daily-todos');
+          const savedDefaults = localStorage.getItem('lifeos-default-todos');
+
+          if (savedDefaults) {
+            defaultTodos = JSON.parse(savedDefaults);
+          } else {
+            // Provide some initial default tasks if none are saved
+            defaultTodos = ["Morning exercise", "Plan day", "Check emails"];
+            localStorage.setItem('lifeos-default-todos', JSON.stringify(defaultTodos));
+          }
+
+          if (savedData) {
+            const parsedData = JSON.parse(savedData);
+            if (parsedData.date === todayStr && Array.isArray(parsedData.todos)) {
+              dailyTodos = parsedData.todos;
+              lastTodoDate = parsedData.date;
+              return; // Loaded today's list successfully
+            }
+          }
+          // If no saved data for today, or data is invalid/old, load defaults
+          handleResetTodos(false); // Load defaults without confirmation, don't save immediately (will save on first action)
+          lastTodoDate = todayStr; // Update the date tracker
+
+        } catch (error) {
+          console.error("Error loading todos:", error);
+          localStorage.removeItem('lifeos-daily-todos'); // Clear potentially corrupt data
+          handleResetTodos(false); // Fallback to defaults
+          lastTodoDate = todayStr;
+        }
+      }
+
+      function handleAddTodo() {
+        const input = $('#new-todo-input');
+        const text = input.value.trim();
+        if (text) {
+          const newTodo = {
+            text: text,
+            completed: false,
+            id: crypto.randomUUID()
+          };
+          dailyTodos.push(newTodo);
+          input.value = '';
+          saveTodos();
+          renderTodoListWidget();
+        }
+      }
+
+      function handleToggleTodo(id) {
+        const todoIndex = dailyTodos.findIndex(todo => todo.id === id);
+        if (todoIndex > -1) {
+          dailyTodos[todoIndex].completed = !dailyTodos[todoIndex].completed;
+          saveTodos();
+          renderTodoListWidget(); // Just re-render to update progress and style
+        }
+      }
+
+      function handleDeleteTodo(id) {
+          dailyTodos = dailyTodos.filter(todo => todo.id !== id);
+          saveTodos();
+          renderTodoListWidget();
+      }
+
+      function handleResetTodos(confirmReset = true) { // Add flag to skip confirmation on initial load
+         // NOTE: Replaced window.confirm with a simple true, as window.confirm is not available.
+         // In a real app, you'd build a custom modal for this.
+         if (confirmReset && !true) {
+             return;
+         }
+         dailyTodos = defaultTodos.map(text => ({
+             text: text,
+             completed: false,
+             id: crypto.randomUUID()
+         }));
+         if (confirmReset) { // Only save if user explicitly clicked reset
+             saveTodos();
+         }
+         renderTodoListWidget();
+      }
+
+      // --- Onboarding Functions ---
+      function defineOnboardingSteps() {
+        onboardingSteps = [
+          {
+            element: '#stat-time-week > div', // Target inner div
+            title: 'Welcome to LifeOS!',
+            content: 'This is your main dashboard. Let\'s start with the current time and your week\'s progress.'
+          },
+          {
+            element: '#stat-slots > div', // Target inner div
+            title: 'Today\'s Time Slots',
+            content: 'Track your day in 30-minute blocks. The current slot is highlighted, and you can see what\'s left of your day.'
+          },
+          // --- NEW STEPS ---
+          {
+            element: '#stat-age > div', // Target inner div
+            title: 'Current Age',
+            content: 'This widget shows your precise age, calculated from the birth date you set in settings.'
+          },
+          {
+            element: '#stat-remaining > div', // Target inner div
+            title: 'Remaining Time',
+            content: 'See a breakdown of the time left in your "prime" and your total estimated lifespan. A powerful motivator!'
+          },
+          // --- END NEW STEPS ---
+          {
+            element: '#life-grid-container > div', // Target the inner div
+            title: 'Your Life in Grids',
+            content: 'Visualize your entire life, your "prime" years, and more. Milestones you set will appear on this grid.'
+          },
+          {
+            // Target the first *actual* milestone card if it exists, otherwise the grid container
+            element: '#pending-milestones-grid > div:first-child',
+            fallbackElement: '#pending-milestones-grid', // Use grid if no milestones yet
+            title: 'Your Goals',
+            content: 'This is where your active goals will live. You can add new ones using the button in the header.'
+          },
+          {
+            element: '#stat-todolist > div', // Target inner div
+            title: 'Daily Tasks',
+            content: 'Manage your day-to-day tasks here. This list can reset daily with your default tasks set in settings.'
+          },
+          {
+            element: '#btn-add-milestone',
+            title: 'Add a Goal',
+            content: 'Click here to add a new long-term goal. This is key to populating your life grid!'
+          },
+          {
+            element: '#btn-open-settings',
+            title: 'Configure Your Life',
+            content: 'Finally, click here to set your birth date, life expectancy, and other preferences. This is essential for the app to work!'
+          }
+        ];
+      }
+
+      function startOnboarding() {
+        // Ensure calculations are ready before starting, avoids layout issues
+        if (!calculations) {
+            console.warn("Calculations not ready, delaying onboarding start.");
+            setTimeout(startOnboarding, 100); // Retry shortly
+            return;
+        }
+        if (onboardingSteps.length === 0) defineOnboardingSteps();
+        currentOnboardingStep = 0;
+        onboardingOverlay.classList.remove('hidden');
+        onboardingPopover.classList.remove('hidden');
+        onboardingHighlightFrame.classList.remove('hidden'); // Show frame container
+        showOnboardingStep(currentOnboardingStep);
+      }
+
+      function endOnboarding() {
+        onboardingOverlay.classList.add('hidden');
+        onboardingPopover.classList.add('hidden');
+        onboardingPopover.style.opacity = '0'; // Hide popover smoothly
+        onboardingHighlightFrame.classList.add('hidden'); // Hide frame
+        onboardingHighlightFrame.classList.remove('visible');
+        // Remove active class from the last target
+        if (previousOnboardingTarget) {
+            previousOnboardingTarget.classList.remove('onboarding-target-active');
+             // Reset style in case it was modified
+            previousOnboardingTarget.style.transform = '';
+            
+            // NEW: Reset header z-index just in case
+            const header = $('header');
+            if (header && header.contains(previousOnboardingTarget)) {
+                header.style.zIndex = '10';
+            }
+
+            previousOnboardingTarget = null;
+        }
+        localStorage.setItem('lifeos-onboarding-complete', 'true');
+      }
+
+      function showOnboardingStep(index) {
+        if (index < 0 || index >= onboardingSteps.length) {
+          endOnboarding();
+          return;
+        }
+
+        // Hide popover and frame while moving/updating
+        onboardingPopover.style.opacity = '0';
+        onboardingHighlightFrame.classList.remove('visible');
+
+        // Remove highlight class and reset style from previous target
+        if (previousOnboardingTarget) {
+            previousOnboardingTarget.classList.remove('onboarding-target-active');
+             // Reset potential transform
+            previousOnboardingTarget.style.transform = '';
+
+            // NEW: Check if previous target was in header and reset header z-index
+            const header = $('header');
+            if (header && header.contains(previousOnboardingTarget)) {
+                header.style.zIndex = '10'; // Reset to default
+            }
+        }
+
+
+        const step = onboardingSteps[index];
+        let targetElement = $(step.element);
+
+        // Use fallback if primary target doesn't exist (e.g., no pending milestones yet)
+        if (!targetElement && step.fallbackElement) {
+            targetElement = $(step.fallbackElement);
+        }
+
+
+        if (!targetElement) {
+          console.warn(`Onboarding element not found: ${step.element} (and no fallback or fallback not found). Skipping.`);
+          // Hide frame explicitly if target is not found
+           onboardingHighlightFrame.classList.add('hidden');
+           previousOnboardingTarget = null; // Reset previous target
+          currentOnboardingStep = index + 1;
+          // Add a small delay before showing next step if skipping
+          setTimeout(() => showOnboardingStep(currentOnboardingStep), 50);
+          return;
+        }
+
+        // Ensure frame is not hidden if we found an element
+        onboardingHighlightFrame.classList.remove('hidden');
+
+        // Add highlight class to the new target
+        targetElement.classList.add('onboarding-target-active');
+        previousOnboardingTarget = targetElement; // Update previous target
+
+        // NEW: Elevate header if target is inside it
+        const header = $('header');
+        if (header && header.contains(targetElement)) {
+            header.style.zIndex = '102'; // Elevate header
+        } else if (header) {
+            header.style.zIndex = '10'; // Ensure it's reset if new target is not in header
+        }
+
+
+        // Scroll smoothly to the element
+        // Use 'center' to ensure the element is nicely framed if possible
+        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+
+
+        $('#onboarding-title').textContent = step.title;
+        $('#onboarding-content').textContent = step.content;
+
+        // Update buttons
+        const btnBack = $('#btn-onboarding-back');
+        const btnNext = $('#btn-onboarding-next');
+        const btnSkip = $('#btn-onboarding-skip');
+
+        btnBack.classList.toggle('hidden', index === 0);
+        btnNext.textContent = (index === onboardingSteps.length - 1) ? 'Finish' : 'Next';
+        btnSkip.textContent = (index === onboardingSteps.length - 1) ? 'Close' : 'Skip';
+
+        // --- Render Step Indicators ---
+        if (onboardingStepsContainer) {
+            let dotsHtml = '';
+            const totalSteps = onboardingSteps.length;
+            for (let i = 0; i < totalSteps; i++) {
+                dotsHtml += `<div class="onboarding-step-dot ${i === index ? 'active' : ''}"></div>`;
+            }
+            onboardingStepsContainer.innerHTML = dotsHtml;
+        }
+
+
+        // Use requestAnimationFrame to position after scroll and potential reflow
+        requestAnimationFrame(() => {
+          // Add a small delay to allow scrollIntoView to potentially finish
+          setTimeout(() => {
+             // Re-check target existence after delay
+            const currentTargetElement = $(step.element) || (step.fallbackElement ? $(step.fallbackElement) : null);
+            if (!currentTargetElement) {
+                 console.warn("Target element disappeared before positioning after delay.");
+                 endOnboarding(); // End tour if element is gone
+                 return;
+             }
+
+             // Ensure the correct element is marked active *after* delay/scroll
+             if (previousOnboardingTarget !== currentTargetElement) {
+                 if(previousOnboardingTarget) previousOnboardingTarget.classList.remove('onboarding-target-active');
+                 currentTargetElement.classList.add('onboarding-target-active');
+                 previousOnboardingTarget = currentTargetElement;
+             }
+
+            const targetRect = currentTargetElement.getBoundingClientRect();
+
+            // Position and size the highlight frame
+            const framePadding = 4; // Space between element and frame border
+            onboardingHighlightFrame.style.top = `${targetRect.top - framePadding}px`;
+            onboardingHighlightFrame.style.left = `${targetRect.left - framePadding}px`;
+            onboardingHighlightFrame.style.width = `${targetRect.width + (framePadding * 2)}px`;
+            onboardingHighlightFrame.style.height = `${targetRect.height + (framePadding * 2)}px`;
+
+            // --- MORE ROBUST BORDER RADIUS LOGIC ---
+            const targetStyle = window.getComputedStyle(currentTargetElement);
+            let targetRadius = targetStyle.borderRadius;
+            let frameRadius = '18px'; // Default + padding (matches rounded-2xl roughly)
+
+            // Function to parse radius and add padding
+            const calculateFrameRadius = (radiusStr) => {
+                if (!radiusStr) return '18px'; // Default if null/empty
+                if (radiusStr.endsWith('px')) {
+                    try {
+                        const val = parseFloat(radiusStr);
+                        return `${Math.max(0, val + framePadding)}px`;
+                    } catch (e) { return '18px'; }
+                }
+                if (radiusStr.endsWith('%')) {
+                     // For percentages (like 50% for circle), keep it relative but slightly larger is hard.
+                     // Often '9999px' is used for full rounding, handle that.
+                     // For other percentages, it's complex. Let's default or use class checks.
+                     return '18px'; // Default for complex percentages
+                }
+                 // Handle 'rem', 'em' etc. - get computed pixel value if possible
+                 // This might require a temporary element or more complex calculation.
+                 // For now, let's stick to pixels and classes.
+                 return '18px'; // Default if unit is not px
+            };
+
+            // Check if it's a single value or multiple
+            if (targetRadius.includes(' ')) {
+                // Multiple values (top-left top-right bottom-right bottom-left)
+                // Apply the first value, assuming uniform rounding for simplicity
+                targetRadius = targetRadius.split(' ')[0];
+                frameRadius = calculateFrameRadius(targetRadius);
+            } else {
+                 // Single value
+                 frameRadius = calculateFrameRadius(targetRadius);
+            }
+
+            // Override with class checks for common Tailwind values if needed
+            if (currentTargetElement.classList.contains('rounded-full') || targetRadius === '9999px') {
+                 frameRadius = '9999px';
+            } else if (currentTargetElement.classList.contains('rounded-2xl')) {
+                  frameRadius = '20px'; // 16px + 4px padding
+            } else if (currentTargetElement.classList.contains('rounded-xl')) {
+                  frameRadius = '16px'; // 12px + 4px padding
+            } else if (currentTargetElement.classList.contains('rounded-lg')) {
+                 frameRadius = '12px'; // 8px + 4px padding
+            } else if (currentTargetElement.classList.contains('rounded-md')) {
+                 frameRadius = '10px'; // 6px + 4px padding
+            } else if (currentTargetElement.classList.contains('rounded')) {
+                 frameRadius = '8px'; // 4px + 4px padding
+            }
+             // else use the value calculated from computedStyle or the default
+
+
+             onboardingHighlightFrame.style.borderRadius = frameRadius;
+             // --- END BORDER RADIUS LOGIC ---
+
+
+            // Make frame visible
+             onboardingHighlightFrame.classList.add('visible');
+
+
+            // Position popover relative to the highlight frame
+            const frameRect = onboardingHighlightFrame.getBoundingClientRect(); // Use frame's rect now
+             if (!onboardingPopover) return;
+            // Force reflow to get correct dimensions after style changes
+            void onboardingPopover.offsetWidth;
+            const popoverRect = onboardingPopover.getBoundingClientRect();
+
+
+            let popoverTop;
+            let popoverLeft = frameRect.left + (frameRect.width / 2) - (popoverRect.width / 2); // Center horizontally relative to frame
+            
+            // --- REFINED POSITIONING LOGIC ---
+            const spaceBelow = window.innerHeight - frameRect.bottom;
+            const spaceAbove = frameRect.top;
+            const spaceRight = window.innerWidth - frameRect.right;
+            const popoverHeightWithMargin = popoverRect.height + 16; // 16px margin
+            const popoverWidthWithMargin = popoverRect.width + 16;
+
+            // Specific logic for step 1 (Time Slots) - Place RIGHT if possible
+            if (index === 1) {
+                if (spaceRight > popoverWidthWithMargin) { // Check if space to the right
+                    popoverLeft = frameRect.right + 16;
+                    popoverTop = frameRect.top + (frameRect.height / 2) - (popoverRect.height / 2); // Center vertically
+                } else if (spaceBelow > popoverHeightWithMargin) { // Fallback to below
+                    popoverTop = frameRect.bottom + 16;
+                } else { // Last resort: above
+                    popoverTop = frameRect.top - popoverHeightWithMargin;
+                }
+            }
+            // General Logic for all other steps
+            else {
+                // Default: position below if it fits better (or if it fits at all)
+                if (spaceBelow > popoverHeightWithMargin && spaceBelow >= spaceAbove) {
+                    popoverTop = frameRect.bottom + 16;
+                }
+                // Position above if it fits better or is the only option
+                else {
+                    popoverTop = frameRect.top - popoverHeightWithMargin;
+                }
+            }
+
+            // Final boundary checks for Top/Bottom
+            if (popoverTop < 20) {
+                popoverTop = 20;
+            }
+            if (popoverTop + popoverRect.height > window.innerHeight - 20) {
+               popoverTop = window.innerHeight - popoverRect.height - 20;
+            }
+            // --- END REFINED POSITIONING LOGIC ---
+
+
+            // Adjust if popover goes off-screen left/right (Horizontal Centering Check)
+             if (popoverLeft < 20) {
+               popoverLeft = 20; // Add padding from left edge
+             }
+             if (popoverLeft + popoverRect.width > window.innerWidth - 20) {
+               popoverLeft = window.innerWidth - popoverRect.width - 20; // Add padding from right edge
+             }
+
+            // Apply final calculated position
+            onboardingPopover.style.top = `${popoverTop}px`;
+            onboardingPopover.style.left = `${popoverLeft}px`;
+            // Ensure popover is visible after positioning
+            onboardingPopover.style.opacity = '1';
+
+          }, 150); // Delay allows scroll to potentially finish before getting rect
+        });
+      }
+
+
+      // --- Modal & Storage Handlers (Adjusted for Todos) ---
+      function openSettingsModal() {
+        // Load settings into the form
+        $('#settings-form').elements['birthDate'].value = settings.birthDate; 
+        $('#settings-form').elements['maxLifespan'].value = settings.maxLifespan; 
+        $('#settings-form').elements['primeStart'].value = settings.primeStart; 
+        $('#settings-form').elements['primeEnd'].value = settings.primeEnd; 
+        $('#settings-form').elements['activeStart'].value = settings.activeStart; 
+        $('#settings-form').elements['activeEnd'].value = settings.activeEnd;
+        
+        const customQuotesText = (localStorage.getItem('lifeos-custom-quotes') || '').split('\n').filter(Boolean).join('\n');
+        $('#customQuotes').value = customQuotesText;
+        
+        // Load default todos into settings
+        $('#defaultTodos').value = defaultTodos.join('\n');
+
+        // NEW: Render the goal categories tab
+        renderGoalCategorySettings();
+
+        // FIX: Add this line to make the modal visible
+        settingsModal.classList.remove('hidden');
+        // Also ensure icons (like in the tabs) are rendered
+        lucide.createIcons();
+      } 
+      function closeSettingsModal() { 
+        settingsModal.classList.add('hidden');
+        $('#settings-message').classList.add('hidden');
+        // Reset to first tab when closing
+        switchSettingsTab('general');
+      }
+      function renderSubtaskList() { 
+        const subtaskList = $('#milestone-subtask-list'); 
+        
+        // --- NEW: Progress Calculation & Update ---
+        const progressContainer = $('#milestone-progress-container');
+        const progressBar = $('#milestone-progress-bar');
+        const progressText = $('#milestone-progress-text');
+        const progressPercentLabel = $('#milestone-progress-percent');
+
+        const totalCount = currentSubtasks.length;
+        const completedCount = currentSubtasks.filter(st => st.completed).length;
+        const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+        if (totalCount > 0) {
+            if (progressContainer) progressContainer.classList.remove('hidden');
+            if (progressBar) progressBar.style.width = `${progressPercent}%`;
+            if (progressText) progressText.textContent = `${completedCount} / ${totalCount} Completed`;
+            if (progressPercentLabel) progressPercentLabel.textContent = `${Math.floor(progressPercent)}%`;
+        } else {
+            // Hide progress bar if no subtasks
+            if (progressContainer) progressContainer.classList.add('hidden');
+        }
+        // --- END NEW: Progress Calculation & Update ---
+        
+        subtaskList.innerHTML = ''; 
+        currentSubtasks.forEach((subtask, index) => { 
+          const krEl = document.createElement('div'); 
+          krEl.className = 'flex items-center gap-3 bg-black/10 p-3 rounded-lg'; 
+          krEl.innerHTML = ` <input type="checkbox" data-subtask-index="${index}" class="flex-shrink-0 h-5 w-5 bg-[var(--widget-bg)] border-[var(--widget-border)] text-blue-500 rounded focus:ring-blue-400" ${subtask.completed ? 'checked' : ''}> <input type="text" value="${subtask.text}" data-subtask-index="${index}" placeholder="Subtask description..." class="flex-grow bg-transparent text-[var(--text-primary)] text-sm outline-none placeholder:text-[var(--text-tertiary)]"> <button type="button" data-subtask-index="${index}" class="flex-shrink-0 text-[var(--text-tertiary)] hover:text-red-400 transition-colors p-1 opacity-60 hover:opacity-100"> <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i> </button> `; 
+          krEl.querySelector('input[type="checkbox"]').addEventListener('change', (e) => { 
+            currentSubtasks[index].completed = e.target.checked; 
+            renderSubtaskList(); // <-- Rerender to update progress bar
+          }); 
+          krEl.querySelector('input[type="text"]').addEventListener('input', (e) => { 
+            currentSubtasks[index].text = e.target.value; 
+          }); 
+          krEl.querySelector('button').addEventListener('click', (e) => { 
+            currentSubtasks.splice(index, 1); 
+            renderSubtaskList(); // <-- Rerender to update progress bar
+          }); 
+          subtaskList.appendChild(krEl); 
+        }); 
+        lucide.createIcons(); 
+      }
+      function addSubtask() { const input = $('#milestone-subtask-input'); const text = input.value.trim(); if (text) { currentSubtasks.push({ text: text, completed: false }); input.value = ''; renderSubtaskList(); } }
+      function openAddMilestoneModal() { 
+        $('#milestone-modal-title').textContent = "Add New Goal"; 
+        $('#milestone-form').reset(); 
+        $('#milestone-id').value = ''; 
+        updateCategoryDropdowns(); 
+        $('#milestone-category').value = 'default'; 
+        $('#milestone-priority').value = 'medium'; // MODIFIED: Set default priority
+        $('#milestone-notes').value = ''; // MODIFIED: Clear notes
+        currentSubtasks = []; 
+        renderSubtaskList(); 
+        milestoneModal.classList.remove('hidden'); 
+        $('#btn-delete-milestone-modal').classList.add('hidden'); // MODIFIED: Hide delete button
+        lucide.createIcons(); 
+      }
+      function openEditMilestoneModal(milestone) { 
+        $('#milestone-modal-title').textContent = "Edit Goal"; 
+        $('#milestone-form').reset(); 
+        $('#milestone-id').value = milestone.id; 
+        $('#milestone-title').value = milestone.title; 
+        $('#milestone-targetDate').value = milestone.targetDate; 
+        $('#milestone-status').value = milestone.status; 
+        updateCategoryDropdowns(); 
+        $('#milestone-category').value = milestone.category || 'default'; 
+        $('#milestone-priority').value = milestone.priority || 'medium'; // MODIFIED: Load priority
+        $('#milestone-notes').value = milestone.notes || ''; // MODIFIED: Load notes
+        currentSubtasks = milestone.milestones ? JSON.parse(JSON.stringify(milestone.milestones)) : []; 
+        renderSubtaskList(); 
+        milestoneModal.classList.remove('hidden'); 
+        $('#btn-delete-milestone-modal').classList.remove('hidden'); // MODIFIED: Show delete button
+        lucide.createIcons(); 
+      } function closeMilestoneModal() { milestoneModal.classList.add('hidden'); currentSubtasks = []; }
+      function showSettingsMessage(message, type = 'success') { const el = $('#settings-message'); el.textContent = message; el.className = `p-3 rounded-lg text-sm text-white ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`; el.classList.remove('hidden'); setTimeout(() => el.classList.add('hidden'), 3000); }
+      function saveMilestonesToLocalStorage() { try { localStorage.setItem('lifeos-milestones', JSON.stringify(milestones)); renderDashboard(); renderLifeGrid(); } catch (error) { console.error("Error saving milestones to local storage: ", error); } }
+
+      // --- NEW: Goal Category Functions ---
+      function showGoalSettingsMessage(message, type = 'success') {
+        const el = $('#goal-settings-message');
+        if (!el) return;
+        el.textContent = message;
+        el.className = `p-3 rounded-lg text-sm text-white ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
+        el.classList.remove('hidden');
+        setTimeout(() => el.classList.add('hidden'), 3000);
+      }
+
+      function renderGoalCategorySettings() {
+          const listEl = $('#goal-category-list');
+          if (!listEl) return;
+
+          // NEW: Calculate overall progress
+          const allCompleted = milestones.filter(m => m.status === 'completed').length;
+          const allTotal = milestones.length;
+          const allProgressPercent = allTotal > 0 ? (allCompleted / allTotal) * 100 : 0;
+
+          // NEW: Overall Progress Bar HTML
+          const overallProgressHtml = `
+            <div class="mb-6 p-4 bg-black/10 rounded-xl">
+                <h4 class="text-base font-semibold text-[var(--text-primary)] mb-2">Overall Goal Progress</h4>
+                <div class="flex justify-between text-sm font-medium text-[var(--text-secondary)] mb-1">
+                    <span>All Goals</span>
+                    <span>${allCompleted} / ${allTotal} Completed</span>
+                </div>
+                <div class="w-full bg-white/10 rounded-full h-3.5 relative overflow-hidden">
+                    <div class="h-3.5 rounded-full progress-bar-fill" style="width: ${allProgressPercent}%;"></div>
+                    <span class="absolute inset-0 flex items-center justify-center text-xs font-extrabold text-white mix-blend-difference" style="line-height: 1;">
+                      ${Math.floor(allProgressPercent)}%
+                    </span>
+                </div>
+            </div>
+          `;
+
+
+          listEl.innerHTML = overallProgressHtml + goalCategories.map(cat => {
+              // --- Progress Calculation (unchanged) ---
+              let categoryMilestones;
+              if (cat.id === 'default') {
+                  // 'default' catches unassigned, null, or 'default'
+                  categoryMilestones = milestones.filter(m => !m.category || m.category === 'default');
+              } else {
+                  categoryMilestones = milestones.filter(m => m.category === cat.id);
+              }
+              const totalCount = categoryMilestones.length;
+              const completedCount = categoryMilestones.filter(m => m.status === 'completed').length;
+              const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+              // --- END: Progress Calculation ---
+
+              // --- NEW: Google-inspired UX Layout ---
+              const isDefault = cat.id === 'default';
+              
+              return `
+              <div class="flex flex-col gap-3 p-4 bg-white/5 rounded-xl" data-id="${cat.id}">
+                
+                <!-- Row 1: Icon, Name, and Actions -->
+                <div class="flex justify-between items-start">
+                  <div class="flex items-center gap-3">
+                    <span class="flex-shrink-0 p-3 bg-black/10 rounded-lg flex items-center justify-center" style="color: ${cat.color};">
+                        <i data-lucide="${cat.icon || 'target'}" style="width: 24px; height: 24px;"></i>
+                    </span>
+                    <!-- Use an input for name, but styled like text. Disabled for default -->
+                    <input type="text" data-field="name" value="${cat.name}" placeholder="Category Name" 
+                           ${isDefault ? 'disabled' : ''} 
+                           class="text-lg font-semibold bg-transparent text-[var(--text-primary)] rounded-md p-1 -m-1 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-[var(--widget-bg)] disabled:opacity-100 disabled:bg-transparent">
+                  </div>
+                  <div class="flex-shrink-0 flex gap-1 ${isDefault ? 'hidden' : ''}">
+                    <button type="button" data-action="update-category" title="Save Changes" class="p-2 bg-green-600/50 hover:bg-green-600/80 text-white rounded-lg transition-colors">
+                        <i data-lucide="check" style="width: 18px; height: 18px;"></i>
+                    </button>
+                    <button type="button" data-action="delete-category" title="Delete Category" class="p-2 bg-red-600/50 hover:bg-red-600/80 text-white rounded-lg transition-colors">
+                        <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
+                    </button>
+                  </div>
+                </div>
+                
+                <!-- Row 2: Progress -->
+                <div class="w-full">
+                    <div class="flex justify-between text-xs font-medium text-[var(--text-secondary)] mb-1">
+                        <span>Progress: ${completedCount} / ${totalCount} Completed</span>
+                        <span>${progressPercent.toFixed(0)}%</span>
+                    </div>
+                    <div class="w-full bg-white/10 rounded-full h-2.5 relative overflow-hidden">
+                        <div class="h-2.5 rounded-full progress-bar-fill" style="width: ${progressPercent}%; background: ${cat.color};"></div>
+                    </div>
+                </div>
+
+                <!-- Row 3: Edit Inputs (for non-default) -->
+                <div class="flex flex-col sm:flex-row gap-3 pt-3 border-t border-white/10 ${isDefault ? 'hidden' : ''}">
+                  <div class="flex-1 flex flex-col gap-1.5">
+                      <label class="text-xs font-medium text-[var(--text-tertiary)]">Icon Name (Lucide)</label>
+                      <input type="text" data-field="icon" value="${cat.icon}" placeholder="e.g., 'briefcase'" list="lucide-icon-list" 
+                             class="px-3 py-2 bg-[var(--widget-bg)] border border-[var(--widget-border)] text-[var(--text-primary)] rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400 text-sm">
+                  </div>
+                  <div class="flex-1 flex flex-col gap-1.5">
+                      <label class="text-xs font-medium text-[var(--text-tertiary)]">Color</label>
+                      <input type="color" data-field="color" value="${cat.color}" title="Category Color" 
+                             class="w-full h-10 px-2 py-1 bg-[var(--widget-bg)] border border-[var(--widget-border)] rounded-lg cursor-pointer">
+                  </div>
+                </div>
+
+              </div>
+              `;
+          }).join('');
+          lucide.createIcons();
+      }
+
+      function saveCategories() {
+          try {
+              localStorage.setItem('lifeos-goal-categories', JSON.stringify(goalCategories));
+          } catch (error) {
+              console.error("Error saving categories:", error);
+          }
+          // Refresh UI that depends on categories
+          updateCategoryDropdowns();
+          renderDashboard(); // Re-renders milestones
+          renderGoalCategorySettings(); // Re-renders the settings tab
+          lucide.createIcons(); // Re-run lucide
+      }
+
+      function handleAddCategory() {
+          const nameInput = $('#new-category-name');
+          const iconInput = $('#new-category-icon');
+          const colorInput = $('#new-category-color');
+          const name = nameInput.value.trim();
+          const icon = iconInput.value.trim() || 'target';
+          const color = colorInput.value;
+
+          if (name) {
+              goalCategories.push({
+                  id: crypto.randomUUID(),
+                  name: name,
+                  icon: icon,
+                  color: color
+              });
+              nameInput.value = '';
+              iconInput.value = '';
+              colorInput.value = '#ffffff'; // Reset color picker
+              saveCategories();
+              showGoalSettingsMessage('Category added!', 'success');
+          } else {
+              showGoalSettingsMessage('Category name is required.', 'error');
+          }
+      }
+
+      function handleUpdateCategory(id) {
+          const row = $(`#goal-category-list div[data-id="${id}"]`);
+          if (!row) return;
+
+          const name = row.querySelector('[data-field="name"]').value.trim();
+          const icon = row.querySelector('[data-field="icon"]').value.trim() || 'target';
+          const color = row.querySelector('[data-field="color"]').value;
+
+          if (!name) {
+              showGoalSettingsMessage('Category name cannot be empty.', 'error');
+              return;
+          }
+
+          const index = goalCategories.findIndex(c => c.id === id);
+          if (index > -1) {
+              goalCategories[index] = { ...goalCategories[index], name, icon, color };
+              saveCategories();
+              showGoalSettingsMessage('Category updated!', 'success');
+          }
+      }
+
+      function handleDeleteCategory(id) {
+          if (id === 'default') {
+              showGoalSettingsMessage('Cannot delete the default category.', 'error');
+              return;
+          }
+          // NOTE: A custom confirmation modal should replace this.
+          // For now, we'll just delete.
+          goalCategories = goalCategories.filter(c => c.id !== id);
+          
+          // Re-assign milestones using 'default'
+          milestones.forEach(m => {
+              if (m.category === id) {
+                  m.category = 'default';
+              }
+          });
+          
+          saveCategories();
+          saveMilestonesToLocalStorage(); // Save milestones too since they might have changed
+          showGoalSettingsMessage('Category deleted. Milestones reassigned to Default.', 'success');
+      }
+
+      function updateCategoryDropdowns() {
+          const dropdown = $('#milestone-category');
+          if (!dropdown) return;
+          
+          const currentVal = dropdown.value;
+          dropdown.innerHTML = goalCategories.map(cat => 
+              `<option value="${cat.id}" class="bg-gray-800">${cat.name}</option>`
+          ).join('');
+          
+          // Try to re-select the previous value, or default
+          if (goalCategories.some(c => c.id === currentVal)) {
+              dropdown.value = currentVal;
+          } else {
+              dropdown.value = 'default';
+          }
+      }
+      // --- End Goal Category Functions ---
+
+
+      // Adjusted Import/Export for Todos and Categories
+      function handleExportSettings() {
+        try {
+            const customQuotesToExport = (localStorage.getItem('lifeos-custom-quotes') || '').split('\n').filter(Boolean);
+            // Include defaultTodos in export
+            const dataToExport = {
+                settings: settings,
+                milestones: milestones,
+                theme: localStorage.getItem('lifeos-theme') || 'Dark',
+                customQuotes: customQuotesToExport,
+                defaultTodos: defaultTodos, // Added default todos
+                goalCategories: goalCategories // Added goal categories
+            };
+            const dataStr = JSON.stringify(dataToExport, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const date = new Date().toISOString().split('T')[0];
+            a.download = `lifeos-backup-${date}.json`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showSettingsMessage('Data exported successfully!');
+        } catch (error) { console.error("Error exporting data: ", error); showSettingsMessage('Error exporting data.', 'error'); }
+      }
+      function handleImportSettings(event) {
+        const file = event.target.files[0]; if (!file) { return; }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                if (!importedData.settings || !importedData.milestones) { throw new Error('Invalid file format.'); }
+                // Import settings, milestones, theme, quotes...
+                localStorage.setItem('lifeos-settings', JSON.stringify(importedData.settings)); settings = importedData.settings;
+                localStorage.setItem('lifeos-milestones', JSON.stringify(importedData.milestones)); milestones = importedData.milestones;
+                if (importedData.theme) { applyTheme(importedData.theme); }
+                if (Array.isArray(importedData.customQuotes)) { const quotesText = importedData.customQuotes.join('\n'); localStorage.setItem('lifeos-custom-quotes', quotesText); motivationalQuotes = importedData.customQuotes.length > 0 ? importedData.customQuotes : [...defaultMotivationalQuotes]; } else { localStorage.removeItem('lifeos-custom-quotes'); motivationalQuotes = [...defaultMotivationalQuotes]; }
+                // Import defaultTodos
+                if (Array.isArray(importedData.defaultTodos)) {
+                    defaultTodos = importedData.defaultTodos;
+                    localStorage.setItem('lifeos-default-todos', JSON.stringify(defaultTodos));
+                } else {
+                    // Fallback if missing in import
+                    defaultTodos = ["Morning exercise", "Plan day", "Check emails"];
+                    localStorage.setItem('lifeos-default-todos', JSON.stringify(defaultTodos));
+                }
+                
+                // NEW: Import Goal Categories
+                if (Array.isArray(importedData.goalCategories)) {
+                    goalCategories = importedData.goalCategories;
+                    localStorage.setItem('lifeos-goal-categories', JSON.stringify(goalCategories));
+                } else {
+                    goalCategories = [...defaultCategories];
+                    localStorage.setItem('lifeos-goal-categories', JSON.stringify(goalCategories));
+                }
+
+
+                currentQuoteIndex = 0;
+                showSettingsMessage('Data imported! Reloading app...');
+                setTimeout(() => { location.reload(); }, 1500);
+            } catch (error) { console.error("Error importing data: ", error); showSettingsMessage(`Error importing data: ${error.message}`, 'error'); }
+            finally { $('#import-file-input').value = ''; }
+        }; reader.readAsText(file);
+      }
+      function handleSettingsSave(e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const newSettings = {
+            birthDate: formData.get('birthDate'), maxLifespan: parseInt(formData.get('maxLifespan'), 10),
+            primeStart: parseInt(formData.get('primeStart'), 10), primeEnd: parseInt(formData.get('primeEnd'), 10),
+            activeStart: parseInt(formData.get('activeStart'), 10), activeEnd: parseInt(formData.get('activeEnd'), 10),
+        };
+        const customQuotesRaw = formData.get('customQuotes');
+        const customQuotesArray = customQuotesRaw.split('\n').map(q => q.trim()).filter(Boolean);
+        // Save default todos
+        const defaultTodosRaw = formData.get('defaultTodos');
+        const defaultTodosArray = defaultTodosRaw.split('\n').map(t => t.trim()).filter(Boolean);
+
+        try {
+            localStorage.setItem('lifeos-settings', JSON.stringify(newSettings)); settings = newSettings;
+            localStorage.setItem('lifeos-custom-quotes', customQuotesArray.join('\n'));
+            motivationalQuotes = customQuotesArray.length > 0 ? customQuotesArray : [...defaultMotivationalQuotes];
+            // Save default todos
+            localStorage.setItem('lifeos-default-todos', JSON.stringify(defaultTodosArray));
+            defaultTodos = defaultTodosArray;
+
+            currentQuoteIndex = 0;
+            showSettingsMessage('Settings saved successfully!');
+            // Only close modal if the "general" or "data" tab is active.
+            // If on "import/export", user might not want to close.
+            // MODIFIED: Also check for "goals" tab
+            const activeTab = $('#settings-tab-nav .active').dataset.tab;
+            if (activeTab === 'general' || activeTab === 'data') {
+                setTimeout(closeSettingsModal, 1000);
+            }
+            renderDashboard();
+            renderLifeGrid();
+            renderMotivationWidget();
+            // Potentially check if today's todos should be reset if default list changed significantly? (Optional complexity)
+            // renderTodoListWidget(); // Rerender todos if defaults changed
+        } catch (error) { console.error("Error saving settings: ", error); showSettingsMessage('Error saving settings.', 'error'); }
+      }
+      function handleMilestoneSubmit(e) { 
+        e.preventDefault(); 
+        const formData = new FormData(e.target); 
+        const milestoneData = { 
+          title: formData.get('title'), 
+          targetDate: formData.get('targetDate'), 
+          status: formData.get('status'), 
+          category: formData.get('category') || 'default', 
+          milestones: currentSubtasks, 
+          notes: formData.get('notes') || '', // MODIFIED: Save notes
+          priority: formData.get('priority') || 'medium' // MODIFIED: Save priority
+        }; 
+        const id = formData.get('id'); 
+        try { 
+          if (id) { 
+            const index = milestones.findIndex(m => m.id === id); 
+            if (index > -1) { 
+              milestones[index] = { ...milestones[index], ...milestoneData }; 
+            } 
+          } else { 
+            milestoneData.id = crypto.randomUUID(); 
+            milestones.push(milestoneData); 
+          } 
+          saveMilestonesToLocalStorage(); 
+          closeMilestoneModal(); 
+        } catch (error) { 
+          console.error("Error saving milestone: ", error); 
+        } 
+      }
+      function handleMilestoneDelete(id) { try { milestones = milestones.filter(m => m.id !== id); saveMilestonesToLocalStorage(); } catch (error) { console.error("Error deleting milestone: ", error); } } 
+      
+      // NEW: Handler for modal delete button
+      function handleMilestoneDeleteFromModal() {
+        const id = $('#milestone-id').value;
+        if (id) {
+          // In a real app, you'd show a custom confirmation modal here
+          // Since window.confirm is not allowed, we'll proceed directly.
+          handleMilestoneDelete(id);
+          closeMilestoneModal();
+        }
+      }
+
+      function handleMilestoneToggle(milestone) { try { const newStatus = milestone.status === 'pending' ? 'completed' : 'pending'; const index = milestones.findIndex(m => m.id === milestone.id); if (index > -1) { milestones[index].status = newStatus; saveMilestonesToLocalStorage(); } } catch (error) { console.error("Error updating milestone status: ", error); } }
+
+    // --- NEW: Settings Tab Switcher ---
+    function switchSettingsTab(tabId) {
+      if (!tabId) return;
+      // Update buttons
+      $$('.settings-tab-btn').forEach(btn => {
+        if (btn.dataset.tab === tabId) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+      // Update panels
+      $$('.settings-tab-panel').forEach(panel => {
+        if (panel.id === `tab-panel-${tabId}`) {
+          panel.classList.remove('hidden');
+        } else {
+          panel.classList.add('hidden');
+        }
+      });
+      
+      // Hide message when switching tabs
+      $('#settings-message').classList.add('hidden');
+      $('#goal-settings-message').classList.add('hidden'); // Also hide goal message
+    }
+
+    // --- Initialization ---
+      function initApp() {
+      now = new Date(); // Set initial time
+
+      // Load custom quotes first
+      try {
+          const savedQuotesText = localStorage.getItem('lifeos-custom-quotes');
+          if (savedQuotesText) {
+              const savedQuotesArray = savedQuotesText.split('\n').filter(Boolean);
+              if (savedQuotesArray.length > 0) { motivationalQuotes = savedQuotesArray; }
+          }
+      } catch(e) { console.warn("Could not load custom quotes:", e); localStorage.removeItem('lifeos-custom-quotes'); }
+      currentQuoteIndex = 0;
+
+      renderThemeSwitcher();
+      const savedTheme = localStorage.getItem('lifeos-theme') || 'Dark';
+      applyTheme(savedTheme);
+
+      themeSwitcher.addEventListener('click', (e) => {
+        const button = e.target.closest('button');
+        if (button && button.dataset.themeName) { applyTheme(button.dataset.themeName); }
+      });
+
+      // Load initial data (Settings, Milestones, Todos)
+      try {
+        const cachedSettings = localStorage.getItem('lifeos-settings');
+        const cachedMilestones = localStorage.getItem('lifeos-milestones');
+        // Removed notepad loading
+        if (cachedSettings) settings = JSON.parse(cachedSettings); else localStorage.setItem('lifeos-settings', JSON.stringify(defaultSettings));
+        if (cachedMilestones) milestones = JSON.parse(cachedMilestones);
+        
+        // NEW: Load Goal Categories
+        const cachedCategories = localStorage.getItem('lifeos-goal-categories');
+        if (cachedCategories) {
+            goalCategories = JSON.parse(cachedCategories);
+        } else {
+            goalCategories = [...defaultCategories];
+            localStorage.setItem('lifeos-goal-categories', JSON.stringify(goalCategories));
+        }
+        updateCategoryDropdowns(); // Populate dropdowns *after* loading categories
+
+        if (cachedSettings) settings = JSON.parse(cachedSettings); else localStorage.setItem('lifeos-settings', JSON.stringify(defaultSettings));
+        if (cachedMilestones) milestones = JSON.parse(cachedMilestones);
+
+        loadTodos(); // Load todos and handle daily reset
+
+        renderDashboard();
+        renderLifeGrid();
+
+        // --- Check for Onboarding ---
+        // The 'calculations' object is only set if renderDashboard() runs successfully
+        // and doesn't hit the 'return' for new users.
+        if (calculations) {
+            const onboardingComplete = localStorage.getItem('lifeos-onboarding-complete');
+            if (onboardingComplete !== 'true') {
+                setTimeout(startOnboarding, 500); // Short delay to ensure rendering
+            }
+        }
+
+      } catch (e) {
+        console.warn("Could not load from cache:", e);
+        localStorage.clear();
+        settings = {...defaultSettings}; milestones = [];
+        goalCategories = [...defaultCategories]; // Reset categories
+        motivationalQuotes = [...defaultMotivationalQuotes];
+        loadTodos(); // Load default todos after clearing
+        renderDashboard();
+        updateCategoryDropdowns(); // Populate dropdowns after reset
+      }
+
+      // MODIFIED: updateCountdowns to update the new combined widget
+      function updateCountdowns() {
+        now = new Date();
+
+        // Update Combined Time/Week Widget
+        const timeDisplay = $('#time-display');
+        const dateDisplay = $('#date-display');
+        if (timeDisplay) timeDisplay.textContent = now.toLocaleTimeString();
+        if (dateDisplay) dateDisplay.textContent = formatDate(now); // Use DD-MM-YYYY
+
+        if (!calculations) return;
+
+        // Check for day change for Todo list reset & update combined widget week grid
+        const todayStr = getTodayDateString();
+        const needsTodoReset = lastTodoDate !== todayStr;
+        if (needsTodoReset) {
+            loadTodos(); // Reloads defaults if date changed
+            renderTodoListWidget(); // Rerender the widget
+        }
+
+        // Recalculate only needed values for dynamic updates
+        const endOfDay = new Date(now); endOfDay.setHours(23, 59, 59, 999); const diffToday = dateDiff(now, endOfDay);
+        const startOfWeek = new Date(now); startOfWeek.setHours(0, 0, 0, 0); startOfWeek.setDate(startOfWeek.getDate() - (startOfWeek.getDay() === 0 ? 6 : startOfWeek.getDay() - 1));
+        const endOfWeek = new Date(startOfWeek); endOfWeek.setDate(endOfWeek.getDate() + 6); endOfWeek.setHours(23, 59, 59, 999); const diffWeek = dateDiff(now, endOfWeek);
+        const startOfDaySlots = new Date(now); startOfDaySlots.setHours(0, 0, 0, 0); const minsPassedToday = dateDiff(startOfDaySlots, now).mins;
+        const newSlotsPassed = Math.floor(minsPassedToday / 30); const minsIntoSlot = minsPassedToday % 30;
+        const slotProgressPercent = (minsIntoSlot / 30) * 100; const secsLeftInMinute = 60 - now.getSeconds();
+        const minsLeftInSlotExact = (29 - minsIntoSlot) + (secsLeftInMinute / 60);
+        const dayOfWeek = now.getDay(); const dayName = calculations.dayName; // Use calculated day name
+        const currentWeekNumber = calculations.currentWeekNumber; // Use calculated week
+        const totalWeeksInYear = calculations.totalWeeksInYear; // Use calculated total weeks
+        const dayProgressNum = dayOfWeek === 0 ? 7 : dayOfWeek;
+
+        // Efficient UI updates...
+        const whatsLeftContainer = $('#whats-left-today-container');
+        if (whatsLeftContainer) { /* ... update hours/mins/secs ... */ const hoursEl = whatsLeftContainer.querySelector('span:nth-child(1)'); const minsEl = whatsLeftContainer.querySelector('div:nth-child(2) > span:nth-child(1)'); const secsEl = whatsLeftContainer.querySelector('div:nth-child(3) > span:nth-child(1)'); if(hoursEl && hoursEl.textContent !== String(Math.floor(diffToday.hours)).padStart(2, '0')) hoursEl.textContent = String(Math.floor(diffToday.hours)).padStart(2, '0'); if(minsEl && minsEl.textContent !== String(Math.floor(diffToday.mins % 60)).padStart(2, '0')) minsEl.textContent = String(Math.floor(diffToday.mins % 60)).padStart(2, '0'); if(secsEl && secsEl.textContent !== String(Math.floor(diffToday.secs % 60)).padStart(2, '0')) secsEl.textContent = String(Math.floor(diffToday.secs % 60)).padStart(2, '0'); }
+        const weekLeftCard = $('#stat-week-left');
+        if (weekLeftCard) { /* ... update days/hours ... */ const daysEl = weekLeftCard.querySelector('span:nth-child(1)'); const hoursEl = weekLeftCard.querySelector('div:nth-child(2) > span:nth-child(1)'); if(daysEl && daysEl.textContent !== String(Math.floor(diffWeek.days)).padStart(2, '0')) daysEl.textContent = String(Math.floor(diffWeek.days)).padStart(2, '0'); if(hoursEl && hoursEl.textContent !== String(Math.floor(diffWeek.hours % 24)).padStart(2, '0')) hoursEl.textContent = String(Math.floor(diffWeek.hours % 24)).padStart(2, '0'); }
+
+        const dayProgressBar = $('#day-progress-bar'); const dayProgressLabel = $('#day-progress-label'); const dayProgressPercentLabel = $('#day-progress-percent-label');
+        const slotProgressBar = $('#slot-progress-bar-new'); const slotProgressLabel = $('#slot-progress-label'); const slotProgressTime = $('#slot-progress-time');
+
+        if (newSlotsPassed !== lastSlotsPassed || needsTodoReset) { // Also update slots if day changed
+            if (calculations) calculations.slotsPassed = newSlotsPassed;
+            renderSlotsWidget();
+            lastSlotsPassed = newSlotsPassed;
+            if (needsTodoReset) { // If day changed, also update the combined widget fully
+                 $('#stat-time-week').querySelector('.space-y-3 > div:first-child').innerHTML = `
+                   <div class="flex items-baseline justify-between gap-4">
+                       <div> <p class="text-xl font-bold text-[var(--text-primary)]">${dayName}</p> <p class="text-base font-medium text-[var(--text-secondary)]">Week ${currentWeekNumber} / ${totalWeeksInYear}</p> </div>
+                       <span class="text-lg font-bold text-[var(--text-secondary)]">${dayProgressNum} / 7</span>
+                   </div>
+                   <div class="mt-1 mb-3"> ${renderSingleRowHeatmap(7, dayProgressNum, currentTheme.gradients.day, "Day")} </div>
+                 `;
+                 // Re-render dashboard to update day of year
+                 renderDashboard(); 
+            }
+        }
+        else { const dayProgressPercent = (newSlotsPassed / 48) * 100; if (dayProgressBar) dayProgressBar.style.width = dayProgressPercent + '%'; if (dayProgressLabel) dayProgressLabel.textContent = `Slot ${newSlotsPassed + 1} / 48`; if (dayProgressPercentLabel) dayProgressPercentLabel.textContent = `${Math.floor(dayProgressPercent)}%`; if (slotProgressBar) slotProgressBar.style.width = slotProgressPercent + '%'; if (slotProgressLabel) slotProgressLabel.textContent = `${Math.floor(slotProgressPercent)}%`; if (slotProgressTime) { const displayMins = Math.max(0, Math.floor(minsLeftInSlotExact)); const displaySecs = secsLeftInMinute === 60 ? 0 : secsLeftInMinute; const newTimeText = `<i data-lucide="timer" class="w-4 h-4 mr-1.5 opacity-80 animate-pulse"></i> ${String(displayMins).padStart(1, '0')}m ${String(displaySecs).padStart(2, '0')}s left`; if (slotProgressTime.innerHTML !== newTimeText) { slotProgressTime.innerHTML = newTimeText; lucide.createIcons({ nodes: [slotProgressTime.querySelector('i')] }); } } }
+
+          
+      }
+
+      // Removed debouncedSaveNote initialization
+
+      // --- Setup Event Listeners ---
+      $('#btn-add-milestone').addEventListener('click', openAddMilestoneModal);
+      $('#btn-open-settings').addEventListener('click', openSettingsModal);
+       $('#btn-start-onboarding').addEventListener('click', startOnboarding); // Added listener for tour button
+      $('#btn-close-settings').addEventListener('click', closeSettingsModal);
+      $('#btn-cancel-settings').addEventListener('click', closeSettingsModal);
+      $('#settings-modal').addEventListener('click', (e) => { if (e.target.id === 'settings-modal') closeSettingsModal(); });
+      // Stop propagation on the main modal content, not just the inner form
+      $('#settings-modal > div').addEventListener('click', (e) => e.stopPropagation());
+      $('#settings-form').addEventListener('submit', handleSettingsSave);
+      
+      // NEW: Settings Tab Listener
+      $('#settings-tab-nav').addEventListener('click', (e) => {
+          const button = e.target.closest('.settings-tab-btn');
+          if (button && button.dataset.tab) {
+              switchSettingsTab(button.dataset.tab);
+              // Re-run createIcons for the nav if they are dynamic (which they are now)
+              lucide.createIcons({ nodes: [button] });
+          }
+      });
+
+      $('#btn-export-data').addEventListener('click', handleExportSettings);
+      $('#btn-import-data').addEventListener('click', () => $('#import-file-input').click());
+      $('#import-file-input').addEventListener('change', handleImportSettings);
+      $('#btn-close-milestone').addEventListener('click', closeMilestoneModal);
+      $('#btn-cancel-milestone').addEventListener('click', closeMilestoneModal);
+      $('#milestone-modal').addEventListener('click', (e) => { if (e.target.id === 'milestone-modal') closeMilestoneModal(); });
+      $('#milestone-modal > div').addEventListener('click', (e) => e.stopPropagation());
+      $('#milestone-form').addEventListener('submit', handleMilestoneSubmit);
+      $('#btn-add-subtask').addEventListener('click', addSubtask);
+      $('#milestone-subtask-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addSubtask(); } });
+      $('#btn-delete-milestone-modal').addEventListener('click', handleMilestoneDeleteFromModal); // MODIFIED: Added listener
+
+      // --- NEW: Goal Category Listeners ---
+      $('#btn-add-category').addEventListener('click', handleAddCategory);
+      $('#goal-category-list').addEventListener('click', (e) => {
+          const updateBtn = e.target.closest('[data-action="update-category"]');
+          if (updateBtn) {
+              const id = updateBtn.closest('[data-id]').dataset.id;
+              handleUpdateCategory(id);
+              return;
+          }
+          const deleteBtn = e.target.closest('[data-action="delete-category"]');
+          if (deleteBtn) {
+              const id = deleteBtn.closest('[data-id]').dataset.id;
+              handleDeleteCategory(id);
+              return;
+          }
+      });
+      // Add 'change' listener for icon/color inputs to provide instant feedback
+      $('#goal-category-list').addEventListener('change', (e) => {
+         const input = e.target.closest('[data-field="icon"], [data-field="color"]');
+         if (input) {
+            const row = input.closest('[data-id]');
+            const id = row.dataset.id;
+            if (id === 'default') return; // Don't allow live-editing default
+            
+            const iconName = row.querySelector('[data-field="icon"]').value.trim() || 'target';
+            const color = row.querySelector('[data-field="color"]').value;
+            
+            const iconPreview = row.querySelector('i[data-lucide]');
+            const colorPreview = row.querySelector('.w-5.h-5.rounded-full');
+            
+            if (iconPreview) {
+                iconPreview.setAttribute('data-lucide', iconName);
+                iconPreview.style.color = color;
+                lucide.createIcons({ nodes: [iconPreview] });
+            }
+            if (colorPreview) {
+                colorPreview.style.backgroundColor = color;
+            }
+         }
+      });
+
+
+      // --- Onboarding Listeners ---
+      $('#btn-onboarding-next').addEventListener('click', () => {
+        currentOnboardingStep++;
+        showOnboardingStep(currentOnboardingStep);
+      });
+      $('#btn-onboarding-back').addEventListener('click', () => {
+        currentOnboardingStep--;
+        showOnboardingStep(currentOnboardingStep);
+      });
+      $('#btn-onboarding-skip').addEventListener('click', () => {
+        endOnboarding();
+      });
+      window.addEventListener('resize', debounce(() => {
+          if (!onboardingOverlay.classList.contains('hidden')) {
+             // Re-run the positioning logic for the current step on resize
+             showOnboardingStep(currentOnboardingStep);
+          }
+      }, 150)); // Slightly increased debounce time
+
+      // --- Start Timers ---
+      setInterval(updateCountdowns, 1000);
+      
+      // MODIFIED: Call the resetQuoteTimer function to initialize
+      resetQuoteTimer();
+
+      lucide.createIcons();
+
+      // --- Setup Drag and Drop ---
+      const leftGrid = document.getElementById('left-widget-grid');
+      const rightGrid = document.getElementById('right-widget-grid');
+      if (leftGrid && rightGrid) { new Sortable(leftGrid, { group: 'widgets', animation: 150, ghostClass: 'sortable-ghost', draggable: '.draggable-widget' }); new Sortable(rightGrid, { group: 'widgets', animation: 150, ghostClass: 'sortable-ghost', draggable: '.draggable-widget' }); }
+    }
+
+    // --- Run Initialization ---
+    initApp();
+
+  </script>
+</body>
+</html>
