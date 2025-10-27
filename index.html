@@ -579,7 +579,7 @@
   </div>
 
   <!-- Milestone Modal -->
-  <div id="milestone-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity hidden">
+    <div id="milestone-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity hidden">
     <div class="bg-[var(--widget-bg)] backdrop-blur-xl border border-[var(--widget-border)] rounded-2xl w-full max-w-2xl m-4 transform transition-all flex flex-col max-h-[90vh]" style="box-shadow: var(--widget-shadow);"> <!-- MODIFIED: Increased max-w-lg to max-w-2xl -->
       <!-- Modal Header -->
       <div class="flex justify-between items-center p-5 border-b border-[var(--widget-border)] flex-shrink-0">
@@ -859,7 +859,39 @@
     const onboardingStepsContainer = $('#onboarding-steps'); // New reference for dots
 
     // --- Date & Time Utilities ---
-      const dateDiff = (start, end) => { if (!(start instanceof Date) || !(end instanceof Date)) { return { ms: 0, secs: 0, mins: 0, hours: 0, days: 0, weeks: 0, months: 0, years: 0 }; } const diffMs = end.getTime() - start.getTime(); if (diffMs < 0) { return { ms: 0, secs: 0, mins: 0, hours: 0, days: 0, weeks: 0, months: 0, years: 0, isPast: true }; } const diffSecs = diffMs / 1000; const diffMins = diffSecs / 60; const diffHours = diffMins / 60; const diffDays = diffHours / 24; const diffWeeks = diffDays / 7; const diffMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()); const diffYears = end.getFullYear() - start.getFullYear(); return { ms: diffMs, secs: diffSecs, mins: diffMins, hours: diffHours, days: diffDays, weeks: diffWeeks, months: diffMonths, years: diffYears, isPast: false }; };
+      const dateDiff = (start, end) => {
+          if (!(start instanceof Date) || !(end instanceof Date)) {
+              return { ms: 0, secs: 0, mins: 0, hours: 0, days: 0, weeks: 0, months: 0, years: 0, isPast: true };
+          }
+          
+          const diffMs = end.getTime() - start.getTime();
+          const isPast = diffMs < 0;
+
+          const absDiffMs = Math.abs(diffMs);
+          const diffSecs = absDiffMs / 1000;
+          const diffMins = diffSecs / 60;
+          const diffHours = diffMins / 60;
+          const diffDays = absDiffMs / (1000 * 60 * 60 * 24); // Use precise day calculation
+          const diffWeeks = diffDays / 7;
+
+          // Use logic on the correct order of dates for month/year
+          const earlier = isPast ? end : start;
+          const later = isPast ? start : end;
+          const diffMonths = (later.getFullYear() - earlier.getFullYear()) * 12 + (later.getMonth() - earlier.getMonth());
+          const diffYears = later.getFullYear() - earlier.getFullYear();
+          
+          return {
+              ms: absDiffMs,
+              secs: diffSecs,
+              mins: diffMins,
+              hours: diffHours,
+              days: diffDays, // This is the fractional total days
+              weeks: diffWeeks,
+              months: diffMonths,
+              years: diffYears,
+              isPast: isPast
+          };
+      };
       const getAge = (birthDate) => { const today = new Date(); let years = today.getFullYear() - birthDate.getFullYear(); let months = today.getMonth() - birthDate.getMonth(); let days = today.getDate() - birthDate.getDate(); if (days < 0) { months--; days += new Date(today.getFullYear(), today.getMonth(), 0).getDate(); } if (months < 0) { years--; months += 12; } return { years, months, days }; };
       const getWeekNumber = (d) => { d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1)); const weekNo = Math.ceil((( (d - yearStart) / 86400000) + 1) / 7); return weekNo; };
       const getWeeksInYear = (year) => { const d = new Date(Date.UTC(year, 11, 28)); return getWeekNumber(d); };
@@ -1071,13 +1103,53 @@
       // const categoryClass = `pill-${category}`; // REMOVED
       const categoryStyle = `background-color: ${hexToRgba(categoryColor, 0.1)}; color: ${categoryColor}; border: 1px solid ${hexToRgba(categoryColor, 0.2)};`;
 
-      let countdownHtml = ''; if (isPending && !diff.isPast) { 
+      let countdownHtml = '';
+      if (isPending && !diff.isPast) {
         // MODIFIED: Removed flex-grow
-        countdownHtml = ` <div class="flex items-center pt-2" data-countdown-to="${milestone.targetDate}"> <div class="flex justify-between text-center w-full gap-1"> <div class="flex-1 bg-black/10 rounded-lg p-1"> <span class="text-base font-bold text-[var(--text-primary)]">${String(Math.floor(diff.days)).padStart(2, '0')}</span> <span class="block text-[9px] text-[var(--text-tertiary)] uppercase">Days</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1"> <span class="text-base font-bold text-[var(--text-primary)]">${String(Math.floor(diff.hours % 24)).padStart(2, '0')}</span> <span class="block text-[9px] text-[var(--text-tertiary)] uppercase">Hrs</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1"> <span class="text-base font-bold text-[var(--text-primary)]">${String(Math.floor(diff.mins % 60)).padStart(2, '0')}</span> <span class="block text-[9px] text-[var(--text-tertiary)] uppercase">Min</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1"> <span class="text-base font-bold text-[var(--text-primary)]">${String(Math.floor(diff.secs % 60)).padStart(2, '0')}</span> <span class="block text-[9px] text-[var(--text-tertiary)] uppercase">Sec</span> </div> </div> </div>`; 
-      } else { 
-        // MODIFIED: Removed flex-grow
-        countdownHtml = ` <div class="flex items-center justify-center min-h-[40px]"> <span class="text-xs font-medium ${diff.isPast ? 'text-red-400' : 'text-green-300'}"> ${diff.isPast ? 'Past Due' : 'Completed'} </span> </div>`; 
-      } 
+        countdownHtml = ` <div class="flex items-center pt-2" data-countdown-to="${milestone.targetDate}"> <div class="flex justify-between text-center w-full gap-1"> <div class="flex-1 bg-black/10 rounded-lg p-1"> <span class="text-base font-bold text-[var(--text-primary)]">${String(Math.floor(diff.days)).padStart(2, '0')}</span> <span class="block text-[9px] text-[var(--text-tertiary)] uppercase">Days</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1"> <span class="text-base font-bold text-[var(--text-primary)]">${String(Math.floor(diff.hours % 24)).padStart(2, '0')}</span> <span class="block text-[9px] text-[var(--text-tertiary)] uppercase">Hrs</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1"> <span class="text-base font-bold text-[var(--text-primary)]">${String(Math.floor(diff.mins % 60)).padStart(2, '0')}</span> <span class="block text-[9px] text-[var(--text-tertiary)] uppercase">Min</span> </div> <div class="flex-1 bg-black/10 rounded-lg p-1"> <span class="text-base font-bold text-[var(--text-primary)]">${String(Math.floor(diff.secs % 60)).padStart(2, '0')}</span> <span class="block text-[9px] text-[var(--text-tertiary)] uppercase">Sec</span> </div> </div> </div>`;
+      } else {
+        // MODIFIED: Handle "Past Due" and "Completed" with specific day counts
+        let text = '';
+        let colorClass = '';
+
+        if (isPending) {
+            // It must be Past Due
+            const daysAgo = Math.floor(diff.days);
+            if (daysAgo === 0) {
+                text = 'Due Today';
+            } else if (daysAgo === 1) {
+                text = '1 day ago';
+            } else {
+                text = `${daysAgo} days ago`;
+            }
+            colorClass = 'text-red-400';
+        } else {
+            // It is Completed
+            colorClass = 'text-green-300';
+            if (diff.isPast) {
+                // Completed, and due date is in the past
+                const daysAgo = Math.floor(diff.days);
+                if (daysAgo === 0) {
+                    text = 'Completed Today';
+                } else if (daysAgo === 1) {
+                    text = `Completed 1 day ago`;
+                } else {
+                    text = `Completed ${daysAgo} days ago`;
+                }
+            } else {
+                // Completed, and due date is in the future (i.e., early)
+                const daysLeft = Math.ceil(diff.days);
+                if (daysLeft === 0) {
+                    text = 'Completed Today';
+                } else if (daysLeft === 1) {
+                    text = 'Completed 1 day early';
+                } else {
+                    text = `Completed ${daysLeft} days early`;
+                }
+            }
+        }
+        countdownHtml = ` <div class="flex items-center justify-center min-h-[40px]"> <span class="text-xs font-medium ${colorClass}"> ${text} </span> </div>`;
+      }
       const smartDate = targetDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); let subtaskHtml = ''; if (milestone.milestones && milestone.milestones.length > 0) { const totalSubtasks = milestone.milestones.length; const completedSubtasks = milestone.milestones.filter(st => st.completed).length; let dotsHtml = ''; for(let i = 0; i < totalSubtasks; i++) { const dotClass = i < completedSubtasks ? 'bg-green-400' : 'bg-[var(--milestone-dot-inactive)]'; dotsHtml += `<div class="w-2 h-2 rounded-full ${dotClass}"></div>`; } subtaskHtml = ` <div class="mb-2 space-y-1"> <div class="flex justify-between items-center text-xs text-[var(--text-tertiary)]"> <span>Milestones</span> <span class="font-medium">${completedSubtasks} / ${totalSubtasks}</span> </div> <div class="flex items-center gap-1 flex-wrap"> ${dotsHtml} </div> </div>`; } 
       
       // MODIFIED: Added a clickable wrapper div with flex-grow
@@ -1498,11 +1570,15 @@
       }
 
       function handleResetTodos(confirmReset = true) { // Add flag to skip confirmation on initial load
-         // NOTE: Replaced window.confirm with a simple true, as window.confirm is not available.
-         // In a real app, you'd build a custom modal for this.
-         if (confirmReset && !true) {
-             return;
+         if (confirmReset) {
+             // NOTE: In a real app, a custom confirmation modal would go here.
+             // As window.confirm() is disallowed, we are proceeding as if the user clicked "OK".
+             // const userConfirmed = await showCustomConfirm("Are you sure you want to reset to default tasks?");
+             // if (!userConfirmed) {
+             //     return; // User clicked "Cancel" in the custom modal
+             // }
          }
+
          dailyTodos = defaultTodos.map(text => ({
              text: text,
              completed: false,
@@ -2260,9 +2336,10 @@
 
             currentQuoteIndex = 0;
             showSettingsMessage('Settings saved successfully!');
-            // Only close modal if the "general" or "data" tab is active.
-            // If on "import/export", user might not want to close.
-            // MODIFIED: Also check for "goals" tab
+            
+            // Only close the modal if the "General" or "Data" tab is active.
+            // If saving from other tabs (like "Goals" or "Tasks"),
+            // the user is likely still editing, so we keep the modal open.
             const activeTab = $('#settings-tab-nav .active').dataset.tab;
             if (activeTab === 'general' || activeTab === 'data') {
                 setTimeout(closeSettingsModal, 1000);
@@ -2415,47 +2492,7 @@
 
       // MODIFIED: updateCountdowns to update the new combined widget
       function updateCountdowns() {
-        now = new Date(); // Set initial time
-
-        // --- NEW: Update Milestone Countdowns ---
-        $$('#pending-milestones-grid [data-countdown-to]').forEach(countdownContainer => {
-            const targetDateStr = countdownContainer.dataset.countdownTo;
-            if (!targetDateStr) return;
-
-            const targetDate = new Date(targetDateStr);
-            const diff = dateDiff(now, targetDate);
-
-            // Find the spans for numbers
-            // These selectors target the first <span> (the number) inside each of the 4 timer blocks
-            const daysEl = countdownContainer.querySelector('div > div:nth-child(1) > span:nth-child(1)');
-            const hoursEl = countdownContainer.querySelector('div > div:nth-child(2) > span:nth-child(1)');
-            const minsEl = countdownContainer.querySelector('div > div:nth-child(3) > span:nth-child(1)');
-            const secsEl = countdownContainer.querySelector('div > div:nth-child(4) > span:nth-child(1)');
-
-            if (diff.isPast || diff.ms <= 0) {
-                // Time is up. Replace with "Past Due" message.
-                // This matches the "else" block in renderMilestoneWidget's countdown logic.
-                countdownContainer.innerHTML = `
-                    <div class="flex items-center justify-center min-h-[40px]">
-                        <span class="text-xs font-medium text-red-400">Past Due</span>
-                    </div>`;
-                // Remove the data attribute to stop trying to update it
-                countdownContainer.removeAttribute('data-countdown-to');
-            } else if (daysEl && hoursEl && minsEl && secsEl) {
-                // Update the numbers
-                const newDays = String(Math.floor(diff.days)).padStart(2, '0');
-                const newHours = String(Math.floor(diff.hours % 24)).padStart(2, '0');
-                const newMins = String(Math.floor(diff.mins % 60)).padStart(2, '0');
-                const newSecs = String(Math.floor(diff.secs % 60)).padStart(2, '0');
-
-                // Only update textContent if it has changed to avoid unnecessary repaints
-                if (daysEl.textContent !== newDays) daysEl.textContent = newDays;
-                if (hoursEl.textContent !== newHours) hoursEl.textContent = newHours;
-                if (minsEl.textContent !== newMins) minsEl.textContent = newMins;
-                if (secsEl.textContent !== newSecs) secsEl.textContent = newSecs;
-            }
-        });
-        // --- END: Update Milestone Countdowns ---
+        now = new Date();
 
         // Update Combined Time/Week Widget
         const timeDisplay = $('#time-display');
@@ -2519,39 +2556,34 @@
       // Removed debouncedSaveNote initialization
 
       // --- Setup Event Listeners ---
+      
+      // --- Global & Header ---
       $('#btn-add-milestone').addEventListener('click', openAddMilestoneModal);
       $('#btn-open-settings').addEventListener('click', openSettingsModal);
-       $('#btn-start-onboarding').addEventListener('click', startOnboarding); // Added listener for tour button
+      $('#btn-start-onboarding').addEventListener('click', startOnboarding);
+
+      // --- Settings Modal ---
       $('#btn-close-settings').addEventListener('click', closeSettingsModal);
       $('#btn-cancel-settings').addEventListener('click', closeSettingsModal);
       $('#settings-modal').addEventListener('click', (e) => { if (e.target.id === 'settings-modal') closeSettingsModal(); });
-      // Stop propagation on the main modal content, not just the inner form
-      $('#settings-modal > div').addEventListener('click', (e) => e.stopPropagation());
+      $('#settings-modal > div').addEventListener('click', (e) => e.stopPropagation()); // Prevent modal close on content click
       $('#settings-form').addEventListener('submit', handleSettingsSave);
       
-      // NEW: Settings Tab Listener
+      // Settings Tabs
       $('#settings-tab-nav').addEventListener('click', (e) => {
           const button = e.target.closest('.settings-tab-btn');
           if (button && button.dataset.tab) {
               switchSettingsTab(button.dataset.tab);
-              // Re-run createIcons for the nav if they are dynamic (which they are now)
               lucide.createIcons({ nodes: [button] });
           }
       });
-
+      
+      // Settings Data Tab
       $('#btn-export-data').addEventListener('click', handleExportSettings);
       $('#btn-import-data').addEventListener('click', () => $('#import-file-input').click());
       $('#import-file-input').addEventListener('change', handleImportSettings);
-      $('#btn-close-milestone').addEventListener('click', closeMilestoneModal);
-      $('#btn-cancel-milestone').addEventListener('click', closeMilestoneModal);
-      $('#milestone-modal').addEventListener('click', (e) => { if (e.target.id === 'milestone-modal') closeMilestoneModal(); });
-      $('#milestone-modal > div').addEventListener('click', (e) => e.stopPropagation());
-      $('#milestone-form').addEventListener('submit', handleMilestoneSubmit);
-      $('#btn-add-subtask').addEventListener('click', addSubtask);
-      $('#milestone-subtask-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addSubtask(); } });
-      $('#btn-delete-milestone-modal').addEventListener('click', handleMilestoneDeleteFromModal); // MODIFIED: Added listener
 
-      // --- NEW: Goal Category Listeners ---
+      // Settings Goals Tab
       $('#btn-add-category').addEventListener('click', handleAddCategory);
       $('#goal-category-list').addEventListener('click', (e) => {
           const updateBtn = e.target.closest('[data-action="update-category"]');
@@ -2567,31 +2599,40 @@
               return;
           }
       });
-      // Add 'change' listener for icon/color inputs to provide instant feedback
+      // Live preview for icon/color changes in settings
       $('#goal-category-list').addEventListener('change', (e) => {
          const input = e.target.closest('[data-field="icon"], [data-field="color"]');
          if (input) {
             const row = input.closest('[data-id]');
             const id = row.dataset.id;
-            if (id === 'default') return; // Don't allow live-editing default
+            if (id === 'default') return;
             
             const iconName = row.querySelector('[data-field="icon"]').value.trim() || 'target';
             const color = row.querySelector('[data-field="color"]').value;
             
             const iconPreview = row.querySelector('i[data-lucide]');
-            const colorPreview = row.querySelector('.w-5.h-5.rounded-full');
+            const colorPreviewSpan = row.querySelector('span.flex-shrink-0.p-3'); // Target the icon background
             
             if (iconPreview) {
                 iconPreview.setAttribute('data-lucide', iconName);
                 iconPreview.style.color = color;
                 lucide.createIcons({ nodes: [iconPreview] });
             }
-            if (colorPreview) {
-                colorPreview.style.backgroundColor = color;
-            }
+            // Note: The original code didn't have a live color preview for the icon BG,
+            // but this is where you would add it if desired.
+            // e.g., if (colorPreviewSpan) colorPreviewSpan.style.color = color;
          }
       });
 
+      // --- Milestone Modal ---
+      $('#btn-close-milestone').addEventListener('click', closeMilestoneModal);
+      $('#btn-cancel-milestone').addEventListener('click', closeMilestoneModal);
+      $('#milestone-modal').addEventListener('click', (e) => { if (e.target.id === 'milestone-modal') closeMilestoneModal(); });
+      $('#milestone-modal > div').addEventListener('click', (e) => e.stopPropagation()); // Prevent modal close
+      $('#milestone-form').addEventListener('submit', handleMilestoneSubmit);
+      $('#btn-add-subtask').addEventListener('click', addSubtask);
+      $('#milestone-subtask-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addSubtask(); } });
+      $('#btn-delete-milestone-modal').addEventListener('click', handleMilestoneDeleteFromModal);
 
       // --- Onboarding Listeners ---
       $('#btn-onboarding-next').addEventListener('click', () => {
@@ -2607,10 +2648,9 @@
       });
       window.addEventListener('resize', debounce(() => {
           if (!onboardingOverlay.classList.contains('hidden')) {
-             // Re-run the positioning logic for the current step on resize
              showOnboardingStep(currentOnboardingStep);
           }
-      }, 150)); // Slightly increased debounce time
+      }, 150));
 
       // --- Start Timers ---
       setInterval(updateCountdowns, 1000);
@@ -2632,4 +2672,3 @@
   </script>
 </body>
 </html>
-
