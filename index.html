@@ -1210,17 +1210,23 @@
         const isCurrent = i === slotsPassed; const isPast = i < slotsPassed;
         let blockClasses = 'h-3.5 rounded-[3px] relative overflow-hidden transition-colors';
         let blockStyle = '';
+        
+        // NEW: Calculate the color based on the full day's gradient
+        const color = getGradientColor(i, 48, dayGradient);
 
         if (isCurrent) {
           blockClasses += ' ring-2 ring-white/90 shadow-lg';
           blockStyle = `background-color: var(--text-accent); opacity: 0.9;`;
         } else if (isPast) {
           blockClasses += ' slot-past'; // Add class for cross mark
-          const color = getGradientColor(i, slotsPassed > 0 ? slotsPassed : 1 , dayGradient); // Ensure total > 0
-          blockStyle = `background-color: ${color}; opacity: 0.7;`;
+          // UPDATED: Use the dull future/inactive color for past slots, as requested
+          blockStyle = `background-color: var(--slot-future-inactive-bg); opacity: 0.7;`;
         } else {
-          blockStyle = `background-color: var(--slot-future-inactive-bg);`;
-          if (isActive) { /* Optional: Different style for future active */ }
+          // UPDATED: Future slots are now colorful
+          blockStyle = `background-color: ${color};`;
+           if (!isActive) { // Make non-active future slots a bit duller
+            blockStyle += ` opacity: 0.6;`;
+          }
         }
         blocksHtml += `<div title="${title}" class="${blockClasses}" style="${blockStyle}"></div>`;
       }
