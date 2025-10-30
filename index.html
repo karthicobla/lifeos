@@ -25,16 +25,7 @@
           backdropBlur: {
             xl: '20px',
           },
-          // Add custom animation for subtle glow
-          keyframes: {
-            subtleGlow: {
-              '0%, 100%': { boxShadow: '0 0 3px 0px rgba(var(--glow-color, 96, 165, 250), 0.3)' }, // blue-400 default
-              '50%': { boxShadow: '0 0 8px 1px rgba(var(--glow-color, 96, 165, 250), 0.5)' },
-            }
-          },
-          animation: {
-            subtleGlow: 'subtleGlow 2.5s ease-in-out infinite',
-          }
+          // REMOVED: keyframes and animation for subtleGlow
         },
       },
     }
@@ -65,6 +56,11 @@
       --glow-color-rgb: 96, 165, 250; /* blue-400 */
       --progress-bar-bg: linear-gradient(to right, var(--text-accent), #a7f3d0); /* Example gradient */
       --milestone-dot-inactive: rgba(255, 255, 255, 0.2); /* Inactive milestone subtask dot */
+    }
+
+    /* NEW: Static glow for completed milestone dots */
+    .completed-dot-glow {
+      box-shadow: 0 0 4px 0px rgba(var(--glow-color-rgb, 74, 222, 128), 0.6); /* MODIFIED: Reduced blur from 7px to 4px and spread from 1px to 0px */
     }
 
     body {
@@ -1150,7 +1146,20 @@
         }
         countdownHtml = ` <div class="flex items-center justify-center min-h-[40px]"> <span class="text-xs font-medium ${colorClass}"> ${text} </span> </div>`;
       }
-      const smartDate = targetDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); let subtaskHtml = ''; if (milestone.milestones && milestone.milestones.length > 0) { const totalSubtasks = milestone.milestones.length; const completedSubtasks = milestone.milestones.filter(st => st.completed).length; let dotsHtml = ''; for(let i = 0; i < totalSubtasks; i++) { const dotClass = i < completedSubtasks ? 'bg-green-400' : 'bg-[var(--milestone-dot-inactive)]'; dotsHtml += `<div class="w-2 h-2 rounded-full ${dotClass}"></div>`; } subtaskHtml = ` <div class="mb-2 space-y-1"> <div class="flex justify-between items-center text-xs text-[var(--text-tertiary)]"> <span>Milestones</span> <span class="font-medium">${completedSubtasks} / ${totalSubtasks}</span> </div> <div class="flex items-center gap-1 flex-wrap"> ${dotsHtml} </div> </div>`; } 
+      const smartDate = targetDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); let subtaskHtml = ''; if (milestone.milestones && milestone.milestones.length > 0) { const totalSubtasks = milestone.milestones.length; const completedSubtasks = milestone.milestones.filter(st => st.completed).length; let dotsHtml = ''; for(let i = 0; i < totalSubtasks; i++) { 
+        
+        // MODIFIED: Changed dot color to blue and glow to light yellow
+        let dotClass = 'w-2 h-2 rounded-full';
+        let dotStyle = '';
+        if (i < completedSubtasks) {
+            dotClass += ' bg-blue-400 completed-dot-glow'; // Was bg-green-400
+            dotStyle = 'style="--glow-color-rgb: 254, 240, 138;"'; // Was green (74, 222, 128). This is yellow-200
+        } else {
+            dotClass += ' bg-[var(--milestone-dot-inactive)]';
+        }
+        dotsHtml += `<div class="${dotClass}" ${dotStyle}></div>`;
+      
+      } subtaskHtml = ` <div class="mb-2 space-y-1"> <div class="flex justify-between items-center text-xs text-[var(--text-tertiary)]"> <span>Milestones</span> <span class="font-medium">${completedSubtasks} / ${totalSubtasks}</span> </div> <div class="flex items-center gap-1 flex-wrap"> ${dotsHtml} </div> </div>`; } 
       
       // MODIFIED: Added a clickable wrapper div with flex-grow
       const html = ` <div class="h-full bg-[var(--widget-bg)] backdrop-blur-xl border border-[var(--widget-border)] rounded-2xl p-3 flex flex-col transition-all" style="box-shadow: var(--widget-shadow);"> 
@@ -2498,7 +2507,7 @@
 
       // MODIFIED: updateCountdowns to update the new combined widget
       function updateCountdowns() {
-        now = new Date();
+        now = new Date(); // Set initial time
 
         // Update Combined Time/Week Widget
         const timeDisplay = $('#time-display');
@@ -2556,6 +2565,60 @@
         }
         else { const dayProgressPercent = (newSlotsPassed / 48) * 100; if (dayProgressBar) dayProgressBar.style.width = dayProgressPercent + '%'; if (dayProgressLabel) dayProgressLabel.textContent = `Slot ${newSlotsPassed + 1} / 48`; if (dayProgressPercentLabel) dayProgressPercentLabel.textContent = `${Math.floor(dayProgressPercent)}%`; if (slotProgressBar) slotProgressBar.style.width = slotProgressPercent + '%'; if (slotProgressLabel) slotProgressLabel.textContent = `${Math.floor(slotProgressPercent)}%`; if (slotProgressTime) { const displayMins = Math.max(0, Math.floor(minsLeftInSlotExact)); const displaySecs = secsLeftInMinute === 60 ? 0 : secsLeftInMinute; const newTimeText = `<i data-lucide="timer" class="w-4 h-4 mr-1.5 opacity-80 animate-pulse"></i> ${String(displayMins).padStart(1, '0')}m ${String(displaySecs).padStart(2, '0')}s left`; if (slotProgressTime.innerHTML !== newTimeText) { slotProgressTime.innerHTML = newTimeText; lucide.createIcons({ nodes: [slotProgressTime.querySelector('i')] }); } } }
 
+        
+        // --- NEW: Update Milestone Countdowns ---
+        $$('[data-countdown-to]').forEach(countdownContainer => {
+            const targetDateStr = countdownContainer.dataset.countdownTo;
+            if (!targetDateStr) return;
+
+            const targetDate = new Date(targetDateStr);
+            const diff = dateDiff(now, targetDate);
+            
+            // Find the number elements
+            const daysEl = countdownContainer.querySelector('div:nth-child(1) > span:nth-child(1)');
+            const hoursEl = countdownContainer.querySelector('div:nth-child(2) > span:nth-child(1)');
+            const minsEl = countdownContainer.querySelector('div:nth-child(3) > span:nth-child(1)');
+            const secsEl = countdownContainer.querySelector('div:nth-child(4) > span:nth-child(1)');
+
+            if (!daysEl || !hoursEl || !minsEl || !secsEl) {
+                // This can happen if the countdown has *just* expired and the DOM 
+                // hasn't been fully re-rendered by renderDashboard() yet,
+                // or if the element structure is not the countdown (e.g., "Past Due").
+                // If it's past, we can just leave it. The next renderDashboard will fix it.
+                if (diff.isPast) {
+                    countdownContainer.innerHTML = `
+                        <div class="flex items-center justify-center min-h-[40px]">
+                            <span class="text-xs font-medium text-red-400">Due Today</span>
+                        </div>
+                    `;
+                    countdownContainer.removeAttribute('data-countdown-to');
+                }
+                return;
+            }
+
+            if (diff.isPast) {
+                // Countdown just expired. Replace it.
+                countdownContainer.innerHTML = `
+                    <div class="flex items-center justify-center min-h-[40px]">
+                        <span class="text-xs font-medium text-red-400">Due Today</span>
+                    </div>
+                `;
+                // Remove the data-attribute to stop processing it
+                countdownContainer.removeAttribute('data-countdown-to');
+            } else {
+                // Update the numbers
+                const days = String(Math.floor(diff.days)).padStart(2, '0');
+                const hours = String(Math.floor(diff.hours % 24)).padStart(2, '0');
+                const mins = String(Math.floor(diff.mins % 60)).padStart(2, '0');
+                const secs = String(Math.floor(diff.secs % 60)).padStart(2, '0');
+
+                if (daysEl.textContent !== days) daysEl.textContent = days;
+                if (hoursEl.textContent !== hours) hoursEl.textContent = hours;
+                if (minsEl.textContent !== mins) minsEl.textContent = mins;
+                if (secsEl.textContent !== secs) secsEl.textContent = secs;
+            }
+        });
+        // --- END NEW: Update Milestone Countdowns ---
           
       }
 
